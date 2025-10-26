@@ -1,0 +1,8 @@
+option('gpu_arch', type: 'string', value: '75',
+       description: 'CUDA architecture (e.g., 75 for sm_75, 86 for sm_86)')
+
+option('build_examples', type: 'boolean', value: false,
+       description: 'Build GPU-NTT examples')
+
+option('build_benchmarks', type: 'boolean', value: false,
+       description: 'Build GPU-NTT benchmarks')
