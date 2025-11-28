@@ -18,7 +18,7 @@ namespace gpuntt
                                           std::vector<T>& input2)
     {
         std::vector<T> output;
-        for (int i = 0; i < parameters.n; i++)
+        for (T i = 0; i < parameters.n; i++)
         {
             output.push_back(
                 OPERATOR<T>::mult(input1[i], input2[i], parameters.modulus));
@@ -101,7 +101,7 @@ namespace gpuntt
 
         std::vector<T> result = matrix_to_vector(transposed_matrix2);
 
-        for (int i = 0; i < parameters.n; i++)
+        for (T i = 0; i < parameters.n; i++)
         {
             result[i] = OPERATOR<T>::mult(result[i], parameters.n_inv,
                                           parameters.modulus);

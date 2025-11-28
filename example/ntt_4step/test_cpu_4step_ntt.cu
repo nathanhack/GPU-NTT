@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
     vector<TestDataType> input2;
     for (int j = 0; j < BATCH; j++)
     {
-        for (int i = 0; i < parameters.n; i++)
+        for (TestDataType i = 0; i < parameters.n; i++)
         {
             input1.push_back(dis(gen));
             input2.push_back(dis(gen));

@@ -1,0 +1,258 @@
+// Copyright 2025 W. Nathan Hack <nathan.hack@gmail.com>
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+// Developer: W. Nathan Hack
+
+// This test verifies GPU 4-step NTT with multiple moduli (RNS-style),
+// where polynomials are assigned to moduli in round-robin fashion.
+
+#include <cstdlib>
+#include <random>
+
+#include "ntt.cuh"
+#include "ntt_4step.cuh"
+#include "ntt_4step_cpu.cuh"
+
+using namespace std;
+using namespace gpuntt;
+
+int LOGN;
+int BATCH;
+int N;
+
+// typedef Data32 TestDataType; // Use for 32-bit Test
+typedef Data64 TestDataType; // Use for 64-bit Test
+
+// Number of RNS moduli to test with
+constexpr int MOD_COUNT = 3;
+
+int main(int argc, char* argv[])
+{
+    CudaDevice();
+
+    if (argc < 3)
+    {
+        LOGN = 12;
+        BATCH = 4;
+    }
+    else
+    {
+        LOGN = atoi(argv[1]);
+        BATCH = atoi(argv[2]);
+    }
+
+    // Total polynomials = BATCH * MOD_COUNT
+    // GPU_4STEP_NTT expects: batch_size parameter is actually "batch per modulus"
+    // With batch_size=BATCH, mod_count=MOD_COUNT, total polys = BATCH * MOD_COUNT
+    // Polynomials are assigned: [q0, q1, q2, q0, q1, q2, ...] round-robin
+    int total_polys = BATCH * MOD_COUNT;
+
+    cout << "Testing GPU 4-Step RNS NTT with " << MOD_COUNT
+         << " moduli, LOGN=" << LOGN << ", BATCH=" << BATCH
+         << " (total_polys=" << total_polys << ")" << endl;
+
+    // Current 4step NTT implementation only works for
+    // ReductionPolynomial::X_N_minus!
+    // Create NTTParameters4Step for each RNS modulus
+    vector<NTTParameters4Step<TestDataType>> parameters_list;
+    parameters_list.reserve(MOD_COUNT);
+
+    for (int m = 0; m < MOD_COUNT; m++)
+    {
+        parameters_list.emplace_back(LOGN, ReductionPolynomial::X_N_minus);
+        cout << "Modulus " << m << ": " << parameters_list[m].modulus.value
+             << endl;
+    }
+
+    // Create CPU NTT generators for reference
+    vector<NTT_4STEP_CPU<TestDataType>> generators;
+    generators.reserve(MOD_COUNT);
+    for (int m = 0; m < MOD_COUNT; m++)
+    {
+        generators.emplace_back(parameters_list[m]);
+    }
+
+    N = parameters_list[0].n;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Random data generation for polynomials
+    vector<vector<TestDataType>> input1(total_polys);
+    for (int j = 0; j < total_polys; j++)
+    {
+        int mod_idx = j % MOD_COUNT;
+        TestDataType minNumber = 0;
+        TestDataType maxNumber = parameters_list[mod_idx].modulus.value - 1;
+        std::uniform_int_distribution<TestDataType> dis(minNumber, maxNumber);
+
+        for (int i = 0; i < N; i++)
+        {
+            input1[j].push_back(dis(gen));
+        }
+    }
+
+    // Compute CPU NTT results for reference
+    vector<vector<TestDataType>> cpu_ntt_result(total_polys);
+    for (int i = 0; i < total_polys; i++)
+    {
+        int mod_idx = i % MOD_COUNT;
+        cpu_ntt_result[i] = generators[mod_idx].ntt(input1[i]);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // GPU Setup
+    ////////////////////////////////////////////////////////////////////////////
+
+    TestDataType* Input_Datas;
+    GPUNTT_CUDA_CHECK(
+        cudaMalloc(&Input_Datas, total_polys * N * sizeof(TestDataType)));
+
+    TestDataType* Output_Datas;
+    GPUNTT_CUDA_CHECK(
+        cudaMalloc(&Output_Datas, total_polys * N * sizeof(TestDataType)));
+
+    for (int j = 0; j < total_polys; j++)
+    {
+        GPUNTT_CUDA_CHECK(cudaMemcpy(Input_Datas + (N * j), input1[j].data(),
+                                     N * sizeof(TestDataType),
+                                     cudaMemcpyHostToDevice));
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // Root of unity tables - concatenated for all moduli
+    //////////////////////////////////////////////////////////////////////////
+
+    int n1 = parameters_list[0].n1;
+    int n2 = parameters_list[0].n2;
+
+    vector<Root<TestDataType>> psitable1_all;
+    vector<Root<TestDataType>> psitable2_all;
+    vector<Root<TestDataType>> W_table_all;
+
+    for (int m = 0; m < MOD_COUNT; m++)
+    {
+        vector<Root<TestDataType>> psitable1 =
+            parameters_list[m].gpu_root_of_unity_table_generator(
+                parameters_list[m].n1_based_root_of_unity_table);
+        vector<Root<TestDataType>> psitable2 =
+            parameters_list[m].gpu_root_of_unity_table_generator(
+                parameters_list[m].n2_based_root_of_unity_table);
+
+        psitable1_all.insert(psitable1_all.end(), psitable1.begin(),
+                             psitable1.end());
+        psitable2_all.insert(psitable2_all.end(), psitable2.begin(),
+                             psitable2.end());
+        W_table_all.insert(W_table_all.end(),
+                           parameters_list[m].W_root_of_unity_table.begin(),
+                           parameters_list[m].W_root_of_unity_table.end());
+    }
+
+    Root<TestDataType>* psitable_device1;
+    GPUNTT_CUDA_CHECK(cudaMalloc(&psitable_device1,
+                                 MOD_COUNT * (n1 >> 1) * sizeof(Root<TestDataType>)));
+    GPUNTT_CUDA_CHECK(cudaMemcpy(psitable_device1, psitable1_all.data(),
+                                 MOD_COUNT * (n1 >> 1) * sizeof(Root<TestDataType>),
+                                 cudaMemcpyHostToDevice));
+
+    Root<TestDataType>* psitable_device2;
+    GPUNTT_CUDA_CHECK(cudaMalloc(&psitable_device2,
+                                 MOD_COUNT * (n2 >> 1) * sizeof(Root<TestDataType>)));
+    GPUNTT_CUDA_CHECK(cudaMemcpy(psitable_device2, psitable2_all.data(),
+                                 MOD_COUNT * (n2 >> 1) * sizeof(Root<TestDataType>),
+                                 cudaMemcpyHostToDevice));
+
+    Root<TestDataType>* W_Table_device;
+    GPUNTT_CUDA_CHECK(
+        cudaMalloc(&W_Table_device, MOD_COUNT * N * sizeof(Root<TestDataType>)));
+    GPUNTT_CUDA_CHECK(cudaMemcpy(W_Table_device, W_table_all.data(),
+                                 MOD_COUNT * N * sizeof(Root<TestDataType>),
+                                 cudaMemcpyHostToDevice));
+
+    //////////////////////////////////////////////////////////////////////////
+    // Modulus and N_inverse arrays
+    //////////////////////////////////////////////////////////////////////////
+
+    Modulus<TestDataType>* test_modulus;
+    GPUNTT_CUDA_CHECK(
+        cudaMalloc(&test_modulus, MOD_COUNT * sizeof(Modulus<TestDataType>)));
+
+    vector<Modulus<TestDataType>> modulus_array;
+    for (int m = 0; m < MOD_COUNT; m++)
+    {
+        modulus_array.push_back(parameters_list[m].modulus);
+    }
+    GPUNTT_CUDA_CHECK(cudaMemcpy(test_modulus, modulus_array.data(),
+                                 MOD_COUNT * sizeof(Modulus<TestDataType>),
+                                 cudaMemcpyHostToDevice));
+
+    Ninverse<TestDataType>* test_ninverse;
+    GPUNTT_CUDA_CHECK(
+        cudaMalloc(&test_ninverse, MOD_COUNT * sizeof(Ninverse<TestDataType>)));
+
+    vector<Ninverse<TestDataType>> ninverse_array;
+    for (int m = 0; m < MOD_COUNT; m++)
+    {
+        ninverse_array.push_back(parameters_list[m].n_inv);
+    }
+    GPUNTT_CUDA_CHECK(cudaMemcpy(test_ninverse, ninverse_array.data(),
+                                 MOD_COUNT * sizeof(Ninverse<TestDataType>),
+                                 cudaMemcpyHostToDevice));
+
+    ntt4step_rns_configuration<TestDataType> cfg_ntt = {.n_power = LOGN,
+                                                        .ntt_type = FORWARD,
+                                                        .mod_inverse =
+                                                            test_ninverse,
+                                                        .stream = 0};
+
+    //////////////////////////////////////////////////////////////////////////
+    // Execute GPU NTT
+    //////////////////////////////////////////////////////////////////////////
+
+    // Transpose all polynomials
+    GPU_Transpose(Input_Datas, Output_Datas, n1, n2, LOGN, total_polys);
+
+    // NTT with RNS: batch_size=total_polys, mod_count=MOD_COUNT
+    // batch_size is total polynomial count, mod_count determines round-robin modulus assignment
+    GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2,
+                  W_Table_device, test_modulus, cfg_ntt, total_polys, MOD_COUNT);
+
+    // Transpose back
+    GPU_Transpose(Input_Datas, Output_Datas, n1, n2, LOGN, total_polys);
+
+    vector<TestDataType> Output_Host(N * total_polys);
+    cudaMemcpy(Output_Host.data(), Output_Datas,
+               N * total_polys * sizeof(TestDataType), cudaMemcpyDeviceToHost);
+
+    // Comparing GPU NTT results and CPU NTT results
+    bool check = true;
+    for (int i = 0; i < total_polys; i++)
+    {
+        check = check_result(Output_Host.data() + (i * N),
+                             cpu_ntt_result[i].data(), N);
+
+        if (!check)
+        {
+            cout << "FAILED (in poly " << i << ", modulus " << (i % MOD_COUNT)
+                 << ")" << endl;
+            break;
+        }
+
+        if ((i == (total_polys - 1)) && check)
+        {
+            cout << "All Correct - GPU 4-Step RNS NTT with " << MOD_COUNT
+                 << " moduli verified." << endl;
+        }
+    }
+
+    // Cleanup
+    cudaFree(Input_Datas);
+    cudaFree(Output_Datas);
+    cudaFree(psitable_device1);
+    cudaFree(psitable_device2);
+    cudaFree(W_Table_device);
+    cudaFree(test_modulus);
+    cudaFree(test_ninverse);
+
+    return EXIT_SUCCESS;
+}

@@ -69,7 +69,7 @@ namespace gpuntt
                                    std::vector<T>& input2)
     {
         std::vector<T> output;
-        for (int i = 0; i < parameters.n; i++)
+        for (T i = 0; i < parameters.n; i++)
         {
             output.push_back(
                 OPERATOR<T>::mult(input1[i], input2[i], parameters.modulus));
@@ -86,31 +86,31 @@ namespace gpuntt
 
         std::vector<T> output = input;
 
-        int t = parameters.n;
-        int m = 1;
+        T t = parameters.n;
+        T m = 1;
 
         while (m < parameters.n)
         {
             t = t >> 1;
 
-            for (int i = 0; i < m; i++)
+            for (T i = 0; i < m; i++)
             {
-                int j1 = 2 * i * t;
-                int j2 = j1 + t - 1;
+                T j1 = 2 * i * t;
+                T j2 = j1 + t - 1;
 
                 int index;
                 if (parameters.poly_reduction == ReductionPolynomial::X_N_minus)
                 {
-                    index = bitreverse(i, parameters.logn - 1);
+                    index = bitreverse(static_cast<int>(i), parameters.logn - 1);
                 }
                 else
                 { // poly_reduce_type = ReductionPolynomial::X_N_plus
-                    index = bitreverse(m + i, parameters.logn);
+                    index = bitreverse(static_cast<int>(m + i), parameters.logn);
                 }
 
                 T S = parameters.forward_root_of_unity_table[index];
 
-                for (int j = j1; j < (j2 + 1); j++)
+                for (T j = j1; j < (j2 + 1); j++)
                 {
                     T U = output[j];
                     T V =
@@ -176,7 +176,7 @@ namespace gpuntt
 
         T n_inv = OPERATOR<T>::modinv(parameters.n, parameters.modulus);
 
-        for (int i = 0; i < parameters.n; i++)
+        for (T i = 0; i < parameters.n; i++)
         {
             output[i] = OPERATOR<T>::mult(output[i], n_inv, parameters.modulus);
         }

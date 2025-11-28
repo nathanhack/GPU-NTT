@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
         vector<vector<TestDataType>> input1(BATCH);
         for (int j = 0; j < BATCH; j++)
         {
-            for (int i = 0; i < parameters.n; i++)
+            for (TestDataType i = 0; i < parameters.n; i++)
             {
                 input1[j].push_back(dis(gen));
             }
@@ -238,7 +238,7 @@ int main(int argc, char* argv[])
         vector<vector<TestDataType>> input1(BATCH);
         for (int j = 0; j < BATCH; j++)
         {
-            for (int i = 0; i < parameters.n; i++)
+            for (TestDataType i = 0; i < parameters.n; i++)
             {
                 input1[j].push_back(dis(gen));
             }
@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
         vector<vector<TestDataTypeSigned>> ntt_result_signed(BATCH);
         for (int j = 0; j < BATCH; j++)
         {
-            for (int i = 0; i < parameters.n; i++)
+            for (TestDataType i = 0; i < parameters.n; i++)
             {
                 std::uint64_t r_modq = ntt_result[j][i];
 

@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
         vector<vector<TestDataType>> input1(BATCH);
         for (int j = 0; j < BATCH; j++)
         {
-            for (int i = 0; i < parameters.n; i++)
+            for (TestDataType i = 0; i < parameters.n; i++)
             {
                 input1[j].push_back(dis(gen));
             }
@@ -139,6 +139,7 @@ int main(int argc, char* argv[])
             .ntt_layout = PerPolynomial,
             .reduction_poly = ReductionPolynomial::X_N_minus,
             .zero_padding = false,
+            .mod_inverse = nullptr,
             .stream = 0};
         GPU_NTT_Inplace(InOut_Datas, Forward_Omega_Table_Device, test_modulus,
                         cfg_ntt, BATCH, 1);
@@ -219,7 +220,7 @@ int main(int argc, char* argv[])
         vector<vector<TestDataTypeSigned>> input1signed(BATCH);
         for (int j = 0; j < BATCH; j++)
         {
-            for (int i = 0; i < parameters.n; i++)
+            for (TestDataType i = 0; i < parameters.n; i++)
             {
                 std::uint64_t r_modq = dis(gen);
                 input1[j].push_back(r_modq);
@@ -298,6 +299,7 @@ int main(int argc, char* argv[])
             .ntt_layout = PerPolynomial,
             .reduction_poly = ReductionPolynomial::X_N_minus,
             .zero_padding = false,
+            .mod_inverse = nullptr,
             .stream = 0};
         GPU_NTT(In_Datas, Out_Datas, Forward_Omega_Table_Device, test_modulus,
                 cfg_ntt, BATCH, 1);
@@ -416,6 +418,7 @@ int main(int argc, char* argv[])
             .ntt_layout = PerPolynomial,
             .reduction_poly = ReductionPolynomial::X_N_plus,
             .zero_padding = false,
+            .mod_inverse = {},
             .stream = 0};
         GPU_NTT_Inplace(InOut_Transpose_Datas, Forward_Omega_Table_Device,
                         parameters.modulus, cfg_ntt, W);
@@ -436,6 +439,7 @@ int main(int argc, char* argv[])
             .ntt_layout = PerCoefficient,
             .reduction_poly = ReductionPolynomial::X_N_plus,
             .zero_padding = false,
+            .mod_inverse = {},
             .stream = 0};
         GPU_NTT_Inplace(InOut_Normal_Datas, Forward_Omega_Table_Device,
                         parameters.modulus, cfg_ntt_c, W);

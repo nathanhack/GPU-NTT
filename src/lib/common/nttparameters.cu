@@ -85,13 +85,13 @@ namespace gpuntt
     {
         if constexpr (std::is_same<T, Data32>::value)
         {
-            customAssert(0 < logn <= 25,
+            customAssert(0 < logn && logn <= 25,
                          "LOGN should be in range 2^0 to 2^25.");
             return Modulus32(469762049);
         }
         else
         {
-            customAssert(0 < logn <= 28,
+            customAssert(0 < logn && logn <= 28,
                          "LOGN should be in range 2^0 to 2^28.");
             return Modulus64(576460756061519873ULL);
         }
@@ -101,7 +101,7 @@ namespace gpuntt
     {
         if constexpr (std::is_same<T, Data32>::value)
         {
-            customAssert(0 < logn <= 25,
+            customAssert(0 < logn && logn <= 25,
                          "LOGN should be in range 2^0 to 2^25.");
             Data32 w = 900;
             Modulus32 mod = modulus_pool();
@@ -110,7 +110,7 @@ namespace gpuntt
         }
         else
         {
-            customAssert(0 < logn <= 28,
+            customAssert(0 < logn && logn <= 28,
                          "LOGN should be in range 2^0 to 2^28.");
             Data64 w = 229929041166717729ULL;
             Modulus64 mod = modulus_pool();
@@ -123,7 +123,7 @@ namespace gpuntt
     {
         if constexpr (std::is_same<T, Data32>::value)
         {
-            customAssert(0 < logn <= 25,
+            customAssert(0 < logn && logn <= 25,
                          "LOGN should be in range 2^0 to 2^25.");
             Data32 w = 30;
             Modulus32 mod = modulus_pool();
@@ -132,7 +132,7 @@ namespace gpuntt
         }
         else
         {
-            customAssert(0 < logn <= 28,
+            customAssert(0 < logn && logn <= 28,
                          "LOGN should be in range 2^0 to 2^28.");
             Data64 psi = 4517306222ULL;
             Modulus64 mod = modulus_pool();
@@ -146,7 +146,7 @@ namespace gpuntt
     {
         forward_root_of_unity_table.push_back(1);
 
-        for (int i = 1; i < root_of_unity_size; i++)
+        for (T i = 1; i < root_of_unity_size; i++)
         {
             T exp = OPERATOR<T>::mult(forward_root_of_unity_table[i - 1],
                                       root_of_unity, modulus);
@@ -159,7 +159,7 @@ namespace gpuntt
     {
         inverse_root_of_unity_table.push_back(1);
 
-        for (int i = 1; i < root_of_unity_size; i++)
+        for (T i = 1; i < root_of_unity_size; i++)
         {
             T exp = OPERATOR<T>::mult(inverse_root_of_unity_table[i - 1],
                                       inverse_root_of_unity, modulus);
@@ -180,7 +180,7 @@ namespace gpuntt
 
         std::vector<T> new_table;
         int lg = log2(root_of_unity_size);
-        for (int i = 0; i < root_of_unity_size; i++)
+        for (T i = 0; i < root_of_unity_size; i++)
         {
             new_table.push_back(table[bitreverse(i, lg)]);
         }
@@ -228,7 +228,7 @@ namespace gpuntt
 
     template <typename T> Modulus<T> NTTParameters4Step<T>::modulus_pool()
     {
-        customAssert(12 <= logn <= 24, "LOGN should be in range 12 to 24.");
+        customAssert(12 <= logn && logn <= 24, "LOGN should be in range 12 to 24.");
         if constexpr (std::is_same<T, Data32>::value)
         {
             static Data32 primes[] = {
@@ -255,7 +255,7 @@ namespace gpuntt
     }
     template <typename T> T NTTParameters4Step<T>::omega_pool()
     {
-        customAssert(12 <= logn <= 24, "LOGN should be in range 12 to 24.");
+        customAssert(12 <= logn && logn <= 24, "LOGN should be in range 12 to 24.");
         if constexpr (std::is_same<T, Data32>::value)
         {
             static Data32 W[] = {36747374, 249229369, 4092529, 175218169,
@@ -281,7 +281,7 @@ namespace gpuntt
 
     template <typename T> T NTTParameters4Step<T>::psi_pool()
     {
-        customAssert(12 <= logn <= 24, "LOGN should be in range 12 to 24.");
+        customAssert(12 <= logn && logn <= 24, "LOGN should be in range 12 to 24.");
         if constexpr (std::is_same<T, Data32>::value)
         {
             static Data32 PSI[] = {77090, 15787, 2023, 13237, 3264, 15452, 490,
@@ -305,7 +305,7 @@ namespace gpuntt
     template <typename T>
     std::vector<int> NTTParameters4Step<T>::matrix_dimention()
     {
-        customAssert(12 <= logn <= 24, "LOGN should be in range 12 to 24.");
+        customAssert(12 <= logn && logn <= 24, "LOGN should be in range 12 to 24.");
         std::vector<int> shape;
         switch (logn)
         {
@@ -462,7 +462,7 @@ namespace gpuntt
 
         std::vector<T> new_table;
         int lg = log2(table.size());
-        for (int i = 0; i < table.size(); i++)
+        for (size_t i = 0; i < table.size(); i++)
         {
             new_table.push_back(table[bitreverse(i, lg)]);
         }

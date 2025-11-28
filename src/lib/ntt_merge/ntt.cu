@@ -2160,7 +2160,7 @@ namespace gpuntt
                              ReductionPolynomial::X_N_minus));
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
 
-                        for (int i = 1;
+                        for (size_t i = 1;
                              i < kernel_parameters[cfg.n_power].size(); i++)
                         {
                             auto& current_kernel_params =
@@ -2204,7 +2204,7 @@ namespace gpuntt
                              ReductionPolynomial::X_N_minus));
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
 
-                        for (int i = 1;
+                        for (size_t i = 1;
                              i < kernel_parameters[cfg.n_power].size() - 1; i++)
                         {
                             auto& current_kernel_params =
@@ -2328,7 +2328,7 @@ namespace gpuntt
                         {
                             typename std::make_unsigned<T>::type* device_in_ =
                                 device_in;
-                            for (int i = 0;
+                            for (size_t i = 0;
                                  i < kernel_parameters[cfg.n_power].size() - 1;
                                  i++)
                             {
@@ -2388,7 +2388,7 @@ namespace gpuntt
                         }
                         else
                         {
-                            for (int i = 0;
+                            for (size_t i = 0;
                                  i < kernel_parameters[cfg.n_power].size(); i++)
                             {
                                 auto& current_kernel_params =
@@ -2442,7 +2442,7 @@ namespace gpuntt
                                 (cfg.reduction_poly ==
                                  ReductionPolynomial::X_N_minus));
                             GPUNTT_CUDA_CHECK(cudaGetLastError());
-                            for (int i = 1;
+                            for (size_t i = 1;
                                  i < kernel_parameters[cfg.n_power].size() - 1;
                                  i++)
                             {
@@ -2522,7 +2522,7 @@ namespace gpuntt
                                  ReductionPolynomial::X_N_minus));
                             GPUNTT_CUDA_CHECK(cudaGetLastError());
 
-                            for (int i = 1;
+                            for (size_t i = 1;
                                  i < kernel_parameters[cfg.n_power].size(); i++)
                             {
                                 auto& current_kernel_params =
@@ -2645,7 +2645,7 @@ namespace gpuntt
                             mod_count);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
 
-                        for (int i = 1;
+                        for (size_t i = 1;
                              i < kernel_parameters[cfg.n_power].size(); i++)
                         {
                             auto& current_kernel_params =
@@ -2691,7 +2691,7 @@ namespace gpuntt
                             mod_count);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
 
-                        for (int i = 1;
+                        for (size_t i = 1;
                              i < kernel_parameters[cfg.n_power].size() - 1; i++)
                         {
                             auto& current_kernel_params =
@@ -2818,7 +2818,7 @@ namespace gpuntt
                         {
                             typename std::make_unsigned<T>::type* device_in_ =
                                 device_in;
-                            for (int i = 0;
+                            for (size_t i = 0;
                                  i < kernel_parameters[cfg.n_power].size() - 1;
                                  i++)
                             {
@@ -2881,7 +2881,7 @@ namespace gpuntt
                         else
                         {
                             T* device_in_ = device_in;
-                            for (int i = 0;
+                            for (size_t i = 0;
                                  i < kernel_parameters[cfg.n_power].size(); i++)
                             {
                                 auto& current_kernel_params =
@@ -2938,7 +2938,7 @@ namespace gpuntt
                                  ReductionPolynomial::X_N_minus),
                                 mod_count);
                             GPUNTT_CUDA_CHECK(cudaGetLastError());
-                            for (int i = 1;
+                            for (size_t i = 1;
                                  i < kernel_parameters[cfg.n_power].size() - 1;
                                  i++)
                             {
@@ -3020,7 +3020,7 @@ namespace gpuntt
                                  ReductionPolynomial::X_N_minus),
                                 mod_count);
                             GPUNTT_CUDA_CHECK(cudaGetLastError());
-                            for (int i = 1;
+                            for (size_t i = 1;
                                  i < kernel_parameters[cfg.n_power].size(); i++)
                             {
                                 auto& current_kernel_params =
@@ -3644,7 +3644,7 @@ namespace gpuntt
             case FORWARD:
                 if (standart_kernel)
                 {
-                    for (int i = 0; i < kernel_parameters[cfg.n_power].size();
+                    for (size_t i = 0; i < kernel_parameters[cfg.n_power].size();
                          i++)
                     {
                         auto& current_kernel_params =
@@ -3670,7 +3670,7 @@ namespace gpuntt
                 }
                 else
                 {
-                    for (int i = 0;
+                    for (size_t i = 0;
                          i < kernel_parameters[cfg.n_power].size() - 1; i++)
                     {
                         auto& current_kernel_params =
@@ -3716,7 +3716,7 @@ namespace gpuntt
             case INVERSE:
                 if (standart_kernel)
                 {
-                    for (int i = 0; i < kernel_parameters[cfg.n_power].size();
+                    for (size_t i = 0; i < kernel_parameters[cfg.n_power].size();
                          i++)
                     {
                         auto& current_kernel_params =
@@ -3760,7 +3760,7 @@ namespace gpuntt
                         mod_count, order);
                     GPUNTT_CUDA_CHECK(cudaGetLastError());
                     device_in_ = device_out;
-                    for (int i = 1; i < kernel_parameters[cfg.n_power].size();
+                    for (size_t i = 1; i < kernel_parameters[cfg.n_power].size();
                          i++)
                     {
                         auto& current_kernel_params =
@@ -4325,7 +4325,7 @@ namespace gpuntt
             case FORWARD:
                 if (standart_kernel)
                 {
-                    for (int i = 0; i < kernel_parameters[cfg.n_power].size();
+                    for (size_t i = 0; i < kernel_parameters[cfg.n_power].size();
                          i++)
                     {
                         auto& current_kernel_params =
@@ -4351,7 +4351,7 @@ namespace gpuntt
                 }
                 else
                 {
-                    for (int i = 0;
+                    for (size_t i = 0;
                          i < kernel_parameters[cfg.n_power].size() - 1; i++)
                     {
                         auto& current_kernel_params =
@@ -4397,7 +4397,7 @@ namespace gpuntt
             case INVERSE:
                 if (standart_kernel)
                 {
-                    for (int i = 0; i < kernel_parameters[cfg.n_power].size();
+                    for (size_t i = 0; i < kernel_parameters[cfg.n_power].size();
                          i++)
                     {
                         auto& current_kernel_params =
@@ -4441,7 +4441,7 @@ namespace gpuntt
                         mod_count, order);
                     GPUNTT_CUDA_CHECK(cudaGetLastError());
                     device_in_ = device_out;
-                    for (int i = 1; i < kernel_parameters[cfg.n_power].size();
+                    for (size_t i = 1; i < kernel_parameters[cfg.n_power].size();
                          i++)
                     {
                         auto& current_kernel_params =
