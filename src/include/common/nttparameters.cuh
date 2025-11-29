@@ -137,9 +137,9 @@ namespace gpuntt
         // For testing all cases with barretti goldilock and plantard reduction
         NTTParameters4Step(int LOGN, ReductionPolynomial poly_reduce_type);
 
-        // For any prime(64-bit)
-        // NTTParameters4Step(int LOGN, NTTFactors ntt_factors,
-        //              ReductionPolynomial poly_reduce_type);
+        // For any prime(64-bit) with custom NTT factors
+        NTTParameters4Step(int LOGN, NTTFactors<T> ntt_factors,
+                     ReductionPolynomial poly_reduce_type);
 
         NTTParameters4Step(); // = delete;
 

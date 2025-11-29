@@ -224,6 +224,42 @@ namespace gpuntt
         n_inverse_generator();
     }
 
+    template <typename T>
+    NTTParameters4Step<T>::NTTParameters4Step(
+        int LOGN, NTTFactors<T> ntt_factors,
+        ReductionPolynomial poly_reduce_type)
+    {
+        logn = LOGN;
+        n = 1 << logn;
+
+        poly_reduction = poly_reduce_type;
+
+        modulus = ntt_factors.modulus;
+        omega = ntt_factors.omega;
+        psi = ntt_factors.psi;
+
+        root_of_unity =
+            (poly_reduce_type == ReductionPolynomial::X_N_minus) ? omega : psi;
+        inverse_root_of_unity = OPERATOR<T>::modinv(root_of_unity, modulus);
+
+        root_of_unity_size =
+            (poly_reduce_type == ReductionPolynomial::X_N_minus)
+                ? (1 << (logn - 1))
+                : (1 << logn);
+
+        std::vector<int> dimention = matrix_dimention();
+        n1 = dimention[0];
+        n2 = dimention[1];
+
+        small_forward_root_of_unity_table_generator();
+        small_inverse_root_of_unity_table_generator();
+
+        TW_forward_table_generator();
+        TW_inverse_table_generator();
+
+        n_inverse_generator();
+    }
+
     template <typename T> NTTParameters4Step<T>::NTTParameters4Step(){};
 
     template <typename T> Modulus<T> NTTParameters4Step<T>::modulus_pool()

@@ -72,6 +72,20 @@ $ ./build/bin/example/gpu_merge_intt_examples <RING_SIZE_IN_LOG2> <BATCH_SIZE>
 $ Example: ./build/bin/example/gpu_merge_ntt_examples 12 1
 ```
 
+#### Finding NTT-Friendly Primes
+
+The `barrett_primes` utility finds NTT-friendly primes suitable for RNS (Residue Number System) configurations:
+
+```bash
+$ ./build/bin/example/barrett_primes <CPU|GPU> <count>
+$ Example: ./build/bin/example/barrett_primes GPU 5
+```
+
+- **GPU mode**: Finds 61-bit primes (GPU Barrett reduction limit)
+- **CPU mode**: Finds 62-bit primes (CPU Barrett reduction limit)
+
+Primes are of form `k * 2^32 + 1`, supporting NTT sizes up to 2^32 points. Output includes the prime value, primitive generator, and instructions for computing roots of unity for both X^N-1 and X^N+1 reduction polynomials.
+
 #### Benchmarking GPU NTT
 
 Choose one of data type which is upper line of the benchmark files:

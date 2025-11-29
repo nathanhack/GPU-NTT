@@ -5,10 +5,14 @@ set(EXECUTABLES
     gpu_merge_intt_examples ntt_merge/test_merge_intt.cu
     gpu_merge_rns_ntt_examples ntt_merge/test_merge_rns_ntt.cu
     gpu_merge_rns_intt_examples ntt_merge/test_merge_rns_intt.cu
+    gpu_merge_rns_ntt_x_n_plus_examples ntt_merge/test_merge_rns_ntt_x_n_plus.cu
+    gpu_merge_rns_intt_x_n_plus_examples ntt_merge/test_merge_rns_intt_x_n_plus.cu
     cpu_merge_ntt_examples ntt_merge/test_cpu_merge_ntt.cu
     cpu_merge_intt_examples ntt_merge/test_cpu_merge_intt.cu
     cpu_merge_rns_ntt_examples ntt_merge/test_cpu_merge_rns_ntt.cu
     cpu_merge_rns_intt_examples ntt_merge/test_cpu_merge_rns_intt.cu
+    cpu_merge_rns_ntt_x_n_plus_examples ntt_merge/test_cpu_merge_rns_ntt_x_n_plus.cu
+    cpu_merge_rns_intt_x_n_plus_examples ntt_merge/test_cpu_merge_rns_intt_x_n_plus.cu
     gpu_4step_ntt_examples ntt_4step/test_4step_ntt.cu
     gpu_4step_intt_examples ntt_4step/test_4step_intt.cu
     gpu_4step_rns_ntt_examples ntt_4step/test_4step_rns_ntt.cu
@@ -41,4 +45,10 @@ foreach(i RANGE 0 ${EXECUTABLES_COUNT_LOOP})
     list(GET EXECUTABLES ${index2} source)
     add_example(${exe} ${source})
 endforeach()
+
+# Standalone C++ utility (no CUDA dependency)
+add_executable(barrett_primes barrett_primes.cpp)
+set_target_properties(barrett_primes PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
 
