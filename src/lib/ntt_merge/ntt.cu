@@ -171,30 +171,35 @@ namespace gpuntt
         const Modulus<TU> modulus_reg = modulus[mod_index];
 
         int t_2 = N_power - 1;
-        int offset = idx_y << N_power;
+        int shared_offset = idx_y << N_power;  // Each batch's data at idx_y * N in shared memory
         int t_ = shared_index;
         int m = 1;
 
+        // For RNS: each polynomial is stored contiguously at batch_index * N in global memory
+        // idx_x indexes into first half [0, N/2), second half is at +blockDim.x (= N/2)
         location_t global_addresss =
-            block_thread + (location_t) ((blockDim.y * block_x) << N_power);
+            idx_x + (location_t) (batch_index << N_power);
 
         location_t omega_addresss = idx_x;
 
         // Load T from global & store to shared
+        // Global: polynomial at batch_index*N, contiguous [0..N-1]
+        // Shared: polynomial at idx_y*N, contiguous [0..N-1]
+        // Each thread loads 2 elements: idx_x and idx_x + N/2
         if constexpr (std::is_signed<T>::value)
         {
             T input1_reg = polynomial_in[global_addresss];
-            T input2_reg = polynomial_in[global_addresss + block_size];
-            shared_memory[block_thread] =
+            T input2_reg = polynomial_in[global_addresss + blockDim.x];
+            shared_memory[shared_offset + idx_x] =
                 OPERATOR_GPU<TU>::reduce(input1_reg, modulus_reg);
-            shared_memory[block_thread + block_size] =
+            shared_memory[shared_offset + idx_x + blockDim.x] =
                 OPERATOR_GPU<TU>::reduce(input2_reg, modulus_reg);
         }
         else
         {
-            shared_memory[block_thread] = polynomial_in[global_addresss];
-            shared_memory[block_thread + block_size] =
-                polynomial_in[global_addresss + block_size];
+            shared_memory[shared_offset + idx_x] = polynomial_in[global_addresss];
+            shared_memory[shared_offset + idx_x + blockDim.x] =
+                polynomial_in[global_addresss + blockDim.x];
         }
 
         int shared_addresss = idx_x;
@@ -208,7 +213,7 @@ namespace gpuntt
 #pragma unroll
         for (int lp = 0; lp < (shared_index + 1); lp++)
         {
-            int group_in_shared_address = in_shared_address + offset;
+            int group_in_shared_address = in_shared_address + shared_offset;
             if (reduction_poly_check)
             { // X_N_minus
                 current_root_index = (omega_addresss >> t_2) +
@@ -237,9 +242,9 @@ namespace gpuntt
 
         __syncthreads();
 
-        polynomial_out[global_addresss] = shared_memory[block_thread];
-        polynomial_out[global_addresss + block_size] =
-            shared_memory[block_thread + block_size];
+        polynomial_out[global_addresss] = shared_memory[shared_offset + idx_x];
+        polynomial_out[global_addresss + blockDim.x] =
+            shared_memory[shared_offset + idx_x + blockDim.x];
     }
 
     template <typename T>
@@ -385,19 +390,24 @@ namespace gpuntt
 
         int t_2 = 0;
         int t_ = 0;
-        int offset = idx_y << N_power;
+        int shared_offset = idx_y << N_power;  // Each batch's data at idx_y * N in shared memory
         int loops = N_power;
         int m = (int) 1 << (N_power - 1);
 
+        // For RNS: each polynomial is stored contiguously at batch_index * N in global memory
+        // idx_x indexes into first half [0, N/2), second half is at +blockDim.x (= N/2)
         location_t global_addresss =
-            block_thread + (location_t) ((blockDim.y * block_x) << N_power);
+            idx_x + (location_t) (batch_index << N_power);
 
         location_t omega_addresss = idx_x;
 
         // Load T from global & store to shared
-        shared_memory[block_thread] = polynomial_in[global_addresss];
-        shared_memory[block_thread + block_size] =
-            polynomial_in[global_addresss + block_size];
+        // Global: polynomial at batch_index*N, contiguous [0..N-1]
+        // Shared: polynomial at idx_y*N, contiguous [0..N-1]
+        // Each thread loads 2 elements: idx_x and idx_x + N/2
+        shared_memory[shared_offset + idx_x] = polynomial_in[global_addresss];
+        shared_memory[shared_offset + idx_x + blockDim.x] =
+            polynomial_in[global_addresss + blockDim.x];
 
         int shared_addresss = idx_x;
 
@@ -410,7 +420,7 @@ namespace gpuntt
 #pragma unroll
         for (int lp = 0; lp < loops; lp++)
         {
-            int group_in_shared_address = in_shared_address + offset;
+            int group_in_shared_address = in_shared_address + shared_offset;
             if (reduction_poly_check)
             { // X_N_minus
                 current_root_index = (omega_addresss >> t_2) +
@@ -438,23 +448,23 @@ namespace gpuntt
         }
         __syncthreads();
 
-        TU output1_reg = OPERATOR_GPU<TU>::mult(shared_memory[block_thread],
+        TU output1_reg = OPERATOR_GPU<TU>::mult(shared_memory[shared_offset + idx_x],
                                                 n_inverse_reg, modulus_reg);
         TU output2_reg =
-            OPERATOR_GPU<TU>::mult(shared_memory[block_thread + block_size],
+            OPERATOR_GPU<TU>::mult(shared_memory[shared_offset + idx_x + blockDim.x],
                                    n_inverse_reg, modulus_reg);
 
         if constexpr (std::is_signed<T>::value)
         {
             polynomial_out[global_addresss] =
                 OPERATOR_GPU<TU>::centered_reduction(output1_reg, modulus_reg);
-            polynomial_out[global_addresss + block_size] =
+            polynomial_out[global_addresss + blockDim.x] =
                 OPERATOR_GPU<TU>::centered_reduction(output2_reg, modulus_reg);
         }
         else
         {
             polynomial_out[global_addresss] = output1_reg;
-            polynomial_out[global_addresss + block_size] = output2_reg;
+            polynomial_out[global_addresss + blockDim.x] = output2_reg;
         }
     }
 
