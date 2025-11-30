@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Developer: W. Nathan Hack
 
-// This test verifies CPU 4-step NTT with multiple moduli (RNS-style),
+// This test verifies CPU 4-step NTT with multiple DISTINCT moduli (RNS-style),
 // where polynomials are assigned to moduli in round-robin fashion.
-// This pattern is used in RNS (Residue Number System) based cryptography
-// where each polynomial is computed modulo a different prime.
+// Uses 3 distinct 61-bit NTT-friendly primes of form k * 2^32 + 1
 
-#include <cstdlib> // For atoi or atof functions
-#include <fstream>
+#include <cstdlib>
 #include <random>
 
 #include "ntt.cuh"
@@ -20,13 +18,42 @@ using namespace gpuntt;
 
 int LOGN;
 int BATCH;
-int N;
 
 // typedef Data32 TestDataType; // Use for 32-bit Test
 typedef Data64 TestDataType; // Use for 64-bit Test
 
 // Number of RNS moduli to test with
 constexpr int MOD_COUNT = 3;
+
+// NTT-friendly primes of form k * 2^32 + 1 (~61 bits)
+struct PrimeInfo
+{
+    TestDataType prime;
+    TestDataType generator;
+    int max_logn;
+};
+
+static PrimeInfo rns_primes[MOD_COUNT] = {
+    {2305842949084151809ULL, 7, 32},
+    {2305842811645198337ULL, 3, 32},
+    {2305842785875394561ULL, 3, 32}
+};
+
+TestDataType compute_omega(const PrimeInfo& info, int logn)
+{
+    Modulus<TestDataType> mod(info.prime);
+    TestDataType pm1 = info.prime - 1;
+    TestDataType exp_val = pm1 >> logn;
+    return OPERATOR<TestDataType>::exp(info.generator, exp_val, mod);
+}
+
+TestDataType compute_psi(const PrimeInfo& info, int logn)
+{
+    Modulus<TestDataType> mod(info.prime);
+    TestDataType pm1 = info.prime - 1;
+    TestDataType exp_val = pm1 >> (logn + 1);
+    return OPERATOR<TestDataType>::exp(info.generator, exp_val, mod);
+}
 
 int main(int argc, char* argv[])
 {
@@ -43,19 +70,34 @@ int main(int argc, char* argv[])
         BATCH = atoi(argv[2]);
     }
 
-    cout << "Testing CPU 4-Step RNS NTT with " << MOD_COUNT
-         << " moduli, LOGN=" << LOGN << ", BATCH=" << BATCH << endl;
+    for (int m = 0; m < MOD_COUNT; m++)
+    {
+        if (LOGN > rns_primes[m].max_logn)
+        {
+            cout << "LOGN=" << LOGN << " exceeds max. Using LOGN=12." << endl;
+            LOGN = 12;
+            break;
+        }
+    }
 
-    // Create NTTParameters4Step for each RNS modulus
-    // Using default modulus for all (tests dispatch pattern)
+    cout << "Testing CPU 4-Step RNS NTT with " << MOD_COUNT
+         << " DISTINCT moduli, LOGN=" << LOGN << ", BATCH=" << BATCH << endl;
+
+    // Create NTTParameters4Step for each RNS modulus with distinct primes
     vector<NTTParameters4Step<TestDataType>> parameters_list;
     parameters_list.reserve(MOD_COUNT);
 
     for (int m = 0; m < MOD_COUNT; m++)
     {
-        parameters_list.emplace_back(LOGN, ReductionPolynomial::X_N_minus);
-        cout << "Modulus " << m << ": " << parameters_list[m].modulus.value
-             << endl;
+        TestDataType omega = compute_omega(rns_primes[m], LOGN);
+        TestDataType psi = compute_psi(rns_primes[m], LOGN);
+
+        NTTFactors<TestDataType> factor(
+            Modulus<TestDataType>(rns_primes[m].prime), omega, psi);
+        parameters_list.emplace_back(LOGN, factor, ReductionPolynomial::X_N_minus);
+
+        cout << "Modulus " << m << ": " << rns_primes[m].prime
+             << " (" << rns_primes[m].prime / (1ULL << 32) << " * 2^32 + 1)" << endl;
     }
 
     // Create CPU NTT generators for each modulus
@@ -66,26 +108,25 @@ int main(int argc, char* argv[])
         generators.emplace_back(parameters_list[m]);
     }
 
-    N = parameters_list[0].n;
-
-    // Total number of polynomials = BATCH * MOD_COUNT
+    int N = parameters_list[0].n;
     int total_polys = BATCH * MOD_COUNT;
 
     std::random_device rd;
     std::mt19937 gen(rd());
 
+    TestDataType min_mod = rns_primes[0].prime;
+    for (int m = 1; m < MOD_COUNT; m++)
+    {
+        min_mod = std::min(min_mod, rns_primes[m].prime);
+    }
+    std::uniform_int_distribution<TestDataType> dis(0, min_mod - 1);
+
     // Random data generation for polynomials
-    // poly[i] uses modulus[i % MOD_COUNT]
     vector<vector<TestDataType>> input1(total_polys);
     vector<vector<TestDataType>> input2(total_polys);
 
     for (int j = 0; j < total_polys; j++)
     {
-        int mod_idx = j % MOD_COUNT;
-        TestDataType minNumber = 0;
-        TestDataType maxNumber = parameters_list[mod_idx].modulus.value - 1;
-        std::uniform_int_distribution<TestDataType> dis(minNumber, maxNumber);
-
         for (int i = 0; i < N; i++)
         {
             input1[j].push_back(dis(gen));
@@ -106,7 +147,6 @@ int main(int argc, char* argv[])
     }
 
     // Comparing CPU NTT multiplication results and schoolbook multiplication
-    // results
     bool check = true;
     for (int i = 0; i < total_polys; i++)
     {
@@ -128,7 +168,7 @@ int main(int argc, char* argv[])
         if ((i == (total_polys - 1)) && check)
         {
             cout << "All Correct - CPU 4-Step RNS NTT with " << MOD_COUNT
-                 << " moduli verified." << endl;
+                 << " DISTINCT moduli verified." << endl;
         }
     }
 

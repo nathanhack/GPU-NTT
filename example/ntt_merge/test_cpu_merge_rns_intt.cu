@@ -3,23 +3,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // Developer: W. Nathan Hack <nathan.hack@gmail.com>
 
-// This test verifies CPU INTT with multiple moduli (RNS-style),
+// This test verifies CPU INTT with multiple DISTINCT moduli (RNS-style),
 // where polynomials are assigned to moduli in round-robin fashion.
 // This pattern is used in RNS (Residue Number System) based cryptography
 // where each polynomial is computed modulo a different prime.
+//
+// Uses 3 distinct 61-bit NTT-friendly primes of form k * 2^32 + 1
 
-#include <cstdlib> // For atoi or atof functions
+#include <cstdlib>
 #include <random>
 
 #include "ntt.cuh"
-#include "ntt_4step_cpu.cuh"
 
 using namespace std;
 using namespace gpuntt;
 
 int LOGN;
 int BATCH;
-int N;
 
 // typedef Data32 TestDataType; // Use for 32-bit Test
 typedef Data64 TestDataType; // Use for 64-bit Test
@@ -27,48 +27,49 @@ typedef Data64 TestDataType; // Use for 64-bit Test
 // Number of RNS moduli to test with
 constexpr int MOD_COUNT = 3;
 
-// NTT-friendly primes of the form p = k * 2^m + 1
-// Along with their primitive roots (generators g such that g^((p-1)/2) = -1 mod p)
-// For omega = g^((p-1)/N) and psi = g^((p-1)/(2N)) where N = 2^LOGN
-struct PrimeWithGenerator
+// NTT-friendly primes of form k * 2^32 + 1 (~61 bits)
+// These are DISTINCT primes for true RNS testing
+// Each has a primitive generator g and supports NTT up to 2^32 points
+struct PrimeInfo
 {
     TestDataType prime;
-    TestDataType generator;  // A primitive root modulo prime
-    int max_logn;            // Maximum supported LOGN (m in p = k*2^m + 1)
+    TestDataType generator;  // Primitive generator g
+    int max_logn;            // Maximum LOGN supported (32 for these primes)
 };
 
-// Using primes and generators from the library's existing parameter pools
-// The generator values come from NTTParameters::omega_pool() base primitive roots
-// Prime: 576460756061519873 = 5 * 2^57 + 1 (default 64-bit prime)
-// Generator: 229929041166717729 is a 2^28-th primitive root of unity
-//
-// For this CPU test, we use the same prime for all moduli to test the
-// round-robin modulus assignment pattern. The GPU RNS test would use
-// different primes to expose any bugs in the inverse transform.
-static PrimeWithGenerator rns_primes[MOD_COUNT] = {
-    {576460756061519873ULL, 229929041166717729ULL, 28},  // Library default with its generator
-    {576460756061519873ULL, 229929041166717729ULL, 28},  // Same prime (tests dispatch pattern)
-    {576460756061519873ULL, 229929041166717729ULL, 28}   // Same prime (tests dispatch pattern)
+// Primitive generators for each prime
+// g^((p-1)/2) = -1 mod p (quadratic non-residue)
+// NOTE: Library Barrett reduction requires modulus <= 61 bits for Data64
+//       (62-bit primes cause overflow in GPU Barrett reduction)
+static PrimeInfo rns_primes[MOD_COUNT] = {
+    // Prime 0: 2305842949084151809 = 536870898 * 2^32 + 1 (61 bits, g=7)
+    {2305842949084151809ULL, 7, 32},
+    // Prime 1: 2305842811645198337 = 536870866 * 2^32 + 1 (61 bits, g=3)
+    {2305842811645198337ULL, 3, 32},
+    // Prime 2: 2305842785875394561 = 536870860 * 2^32 + 1 (61 bits, g=3)
+    {2305842785875394561ULL, 3, 32}
 };
 
-// Compute omega for X^N - 1 polynomial
-// The library uses: omega = g^(2^(28-logn)) for the default 64-bit modulus
-// This follows from the base generator being a 2^28-th root of unity
-TestDataType compute_omega(TestDataType p, TestDataType g, int logn)
+// Compute omega for X^N - 1 polynomial at given LOGN
+// omega is a primitive N-th root of unity: omega^N = 1
+// omega = g^((p-1)/N) = g^((p-1)/2^logn)
+TestDataType compute_omega(const PrimeInfo& info, int logn)
 {
-    Modulus<TestDataType> mod(p);
-    // omega = g^(2^(28-logn)) for 64-bit
-    TestDataType exp_val = static_cast<TestDataType>(1) << (28 - logn);
-    return OPERATOR<TestDataType>::exp(g, exp_val, mod);
+    Modulus<TestDataType> mod(info.prime);
+    TestDataType pm1 = info.prime - 1;
+    TestDataType exp_val = pm1 >> logn;  // (p-1) / 2^logn
+    return OPERATOR<TestDataType>::exp(info.generator, exp_val, mod);
 }
 
-// Compute psi for X^N + 1 polynomial: psi = sqrt(omega) = g^(2^(28-logn-1))
-TestDataType compute_psi(TestDataType p, TestDataType g, int logn)
+// Compute psi for X^N + 1 polynomial at given LOGN
+// psi is a primitive 2N-th root of unity: psi^N = -1
+// psi = g^((p-1)/(2N)) = g^((p-1)/2^(logn+1))
+TestDataType compute_psi(const PrimeInfo& info, int logn)
 {
-    Modulus<TestDataType> mod(p);
-    // psi = g^(2^(28-logn-1)) = g^(2^(27-logn))
-    TestDataType exp_val = static_cast<TestDataType>(1) << (27 - logn);
-    return OPERATOR<TestDataType>::exp(g, exp_val, mod);
+    Modulus<TestDataType> mod(info.prime);
+    TestDataType pm1 = info.prime - 1;
+    TestDataType exp_val = pm1 >> (logn + 1);  // (p-1) / 2^(logn+1)
+    return OPERATOR<TestDataType>::exp(info.generator, exp_val, mod);
 }
 
 int main(int argc, char* argv[])
@@ -91,16 +92,15 @@ int main(int argc, char* argv[])
     {
         if (LOGN > rns_primes[m].max_logn)
         {
-            cout << "LOGN=" << LOGN << " exceeds max supported by prime " << m
-                 << " (max=" << rns_primes[m].max_logn << "). Using LOGN=12."
-                 << endl;
+            cout << "LOGN=" << LOGN << " exceeds max supported ("
+                 << rns_primes[m].max_logn << "). Using LOGN=12." << endl;
             LOGN = 12;
             break;
         }
     }
 
-    cout << "Testing RNS INTT with " << MOD_COUNT << " moduli, LOGN=" << LOGN
-         << ", BATCH=" << BATCH << endl;
+    cout << "Testing CPU RNS INTT with " << MOD_COUNT
+         << " DISTINCT moduli, LOGN=" << LOGN << ", BATCH=" << BATCH << endl;
 
     // Create NTTParameters for each RNS modulus with computed omega/psi values
     vector<NTTParameters<TestDataType>> parameters_list;
@@ -108,17 +108,18 @@ int main(int argc, char* argv[])
 
     for (int m = 0; m < MOD_COUNT; m++)
     {
-        TestDataType p = rns_primes[m].prime;
-        TestDataType g = rns_primes[m].generator;
-        TestDataType omega = compute_omega(p, g, LOGN);
-        TestDataType psi = compute_psi(p, g, LOGN);
+        TestDataType omega = compute_omega(rns_primes[m], LOGN);
+        TestDataType psi = compute_psi(rns_primes[m], LOGN);
 
-        NTTFactors<TestDataType> factor(Modulus<TestDataType>(p), omega, psi);
+        NTTFactors<TestDataType> factor(
+            Modulus<TestDataType>(rns_primes[m].prime), omega, psi);
         parameters_list.emplace_back(LOGN, factor, ReductionPolynomial::X_N_minus);
 
-        cout << "Modulus " << m << ": " << p << " (omega=" << omega << ")"
-             << endl;
+        cout << "Modulus " << m << ": " << rns_primes[m].prime
+             << " (" << rns_primes[m].prime / (1ULL << 32) << " * 2^32 + 1)" << endl;
     }
+
+    int N = parameters_list[0].n;
 
     // Create CPU NTT generators for each modulus
     vector<NTTCPU<TestDataType>> generators;
@@ -128,27 +129,26 @@ int main(int argc, char* argv[])
         generators.emplace_back(parameters_list[m]);
     }
 
-    N = parameters_list[0].n;
-
     // Total number of polynomials = BATCH * MOD_COUNT
-    // Each batch of polynomials is processed with a different modulus
     int total_polys = BATCH * MOD_COUNT;
 
     std::random_device rd;
     std::mt19937 gen(rd());
 
+    // Use smallest modulus for random range to ensure valid values for all
+    TestDataType min_mod = rns_primes[0].prime;
+    for (int m = 1; m < MOD_COUNT; m++)
+    {
+        min_mod = std::min(min_mod, rns_primes[m].prime);
+    }
+    std::uniform_int_distribution<TestDataType> dis(0, min_mod - 1);
+
     // Random data generation for polynomials
-    // We generate polynomials and assign them to moduli in round-robin fashion
     // poly[i] uses modulus[i % MOD_COUNT]
     vector<vector<TestDataType>> input(total_polys);
 
     for (int j = 0; j < total_polys; j++)
     {
-        int mod_idx = j % MOD_COUNT;
-        TestDataType minNumber = 0;
-        TestDataType maxNumber = parameters_list[mod_idx].modulus.value - 1;
-        std::uniform_int_distribution<TestDataType> dis(minNumber, maxNumber);
-
         for (int i = 0; i < N; i++)
         {
             input[j].push_back(dis(gen));
@@ -175,7 +175,7 @@ int main(int argc, char* argv[])
         if ((i == (total_polys - 1)) && check)
         {
             cout << "All Correct - CPU RNS NTT->INTT roundtrip with " << MOD_COUNT
-                 << " moduli verified." << endl;
+                 << " DISTINCT moduli verified." << endl;
         }
     }
 
@@ -186,18 +186,13 @@ int main(int argc, char* argv[])
     vector<vector<TestDataType>> input2(total_polys);
     for (int j = 0; j < total_polys; j++)
     {
-        int mod_idx = j % MOD_COUNT;
-        TestDataType minNumber = 0;
-        TestDataType maxNumber = parameters_list[mod_idx].modulus.value - 1;
-        std::uniform_int_distribution<TestDataType> dis(minNumber, maxNumber);
-
         for (int i = 0; i < N; i++)
         {
             input2[j].push_back(dis(gen));
         }
     }
 
-    // Performing CPU NTT multiplication for each polynomial with its corresponding modulus
+    // Performing CPU NTT multiplication for each polynomial
     vector<vector<TestDataType>> ntt_mult_result(total_polys);
     for (int i = 0; i < total_polys; i++)
     {
@@ -210,7 +205,6 @@ int main(int argc, char* argv[])
     }
 
     // Comparing CPU NTT multiplication results and schoolbook multiplication
-    // results
     check = true;
     for (int i = 0; i < total_polys; i++)
     {
@@ -232,7 +226,7 @@ int main(int argc, char* argv[])
         if ((i == (total_polys - 1)) && check)
         {
             cout << "All Correct - CPU RNS INTT multiplication with " << MOD_COUNT
-                 << " moduli verified." << endl;
+                 << " DISTINCT moduli verified." << endl;
         }
     }
 

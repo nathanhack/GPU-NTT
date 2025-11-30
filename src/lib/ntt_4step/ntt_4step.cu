@@ -69,7 +69,8 @@ namespace gpuntt
     __global__ void
     FourStepForwardCoreT1(T* polynomial_in, T* polynomial_out,
                           Root<T>* n1_root_of_unity_table, Modulus<T>* modulus,
-                          int index1, int index2, int n_power, int mod_count)
+                          int index1, int index2, int n_power, int mod_count,
+                          int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -80,6 +81,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -105,12 +107,12 @@ namespace gpuntt
         CooleyTukeyUnit_(
             sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
             sharedmemorys[(idx_y << 1) + global_index1][in_shared_address + t],
-            n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+            n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)], q_thread);
         CooleyTukeyUnit_(
             sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address],
             sharedmemorys[(idx_y << 1) + global_index1 + 16]
                          [in_shared_address + t],
-            n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+            n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)], q_thread);
         __syncthreads();
 
         for (int i = 0; i < 4; i++)
@@ -124,12 +126,12 @@ namespace gpuntt
                 sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
                 sharedmemorys[(idx_y << 1) + global_index1]
                              [in_shared_address + t],
-                n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+                n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)], q_thread);
             CooleyTukeyUnit_(sharedmemorys[(idx_y << 1) + global_index1 + 16]
                                           [in_shared_address],
                              sharedmemorys[(idx_y << 1) + global_index1 + 16]
                                           [in_shared_address + t],
-                             n1_root_of_unity_table[(global_index2 >> t_)],
+                             n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)],
                              q_thread);
             __syncthreads();
         }
@@ -233,7 +235,7 @@ namespace gpuntt
                                           Root<T>* n1_root_of_unity_table,
                                           Modulus<T>* modulus, int index1,
                                           int index2, int index3, int n_power,
-                                          int mod_count)
+                                          int mod_count, int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -244,6 +246,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -269,10 +272,10 @@ namespace gpuntt
 
         CooleyTukeyUnit_(sharedmemorys[idx_y][in_shared_address],
                          sharedmemorys[idx_y][in_shared_address + t],
-                         n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+                         n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)], q_thread);
         CooleyTukeyUnit_(sharedmemorys[idx_y + 8][in_shared_address],
                          sharedmemorys[idx_y + 8][in_shared_address + t],
-                         n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+                         n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)], q_thread);
         __syncthreads();
 
         for (int i = 0; i < 5; i++)
@@ -285,10 +288,10 @@ namespace gpuntt
 
             CooleyTukeyUnit_(sharedmemorys[idx_y][in_shared_address],
                              sharedmemorys[idx_y][in_shared_address + t],
-                             n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+                             n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)], q_thread);
             CooleyTukeyUnit_(sharedmemorys[idx_y + 8][in_shared_address],
                              sharedmemorys[idx_y + 8][in_shared_address + t],
-                             n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+                             n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)], q_thread);
             __syncthreads();
         }
         __syncthreads();
@@ -399,7 +402,7 @@ namespace gpuntt
                                           Root<T>* n1_root_of_unity_table,
                                           Modulus<T>* modulus, int index1,
                                           int index2, int index3, int n_power,
-                                          int mod_count)
+                                          int mod_count, int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -410,6 +413,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -438,10 +442,10 @@ namespace gpuntt
 
         CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
                          sharedmemorys[shr_in][in_shared_address + t],
-                         n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+                         n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)], q_thread);
         CooleyTukeyUnit_(sharedmemorys[shr_in + 4][in_shared_address],
                          sharedmemorys[shr_in + 4][in_shared_address + t],
-                         n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+                         n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)], q_thread);
         __syncthreads();
 
         for (int i = 0; i < 6; i++)
@@ -453,11 +457,11 @@ namespace gpuntt
 
             CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
                              sharedmemorys[shr_in][in_shared_address + t],
-                             n1_root_of_unity_table[(shr_address >> t_)],
+                             n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                              q_thread);
             CooleyTukeyUnit_(sharedmemorys[shr_in + 4][in_shared_address],
                              sharedmemorys[shr_in + 4][in_shared_address + t],
-                             n1_root_of_unity_table[(shr_address >> t_)],
+                             n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                              q_thread);
             __syncthreads();
         }
@@ -573,7 +577,7 @@ namespace gpuntt
                                           Root<T>* n1_root_of_unity_table,
                                           Modulus<T>* modulus, int index1,
                                           int index2, int index3, int n_power,
-                                          int mod_count)
+                                          int mod_count, int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -584,6 +588,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -612,10 +617,10 @@ namespace gpuntt
 
         CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
                          sharedmemorys[shr_in][in_shared_address + t],
-                         n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+                         n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)], q_thread);
         CooleyTukeyUnit_(sharedmemorys[shr_in + 2][in_shared_address],
                          sharedmemorys[shr_in + 2][in_shared_address + t],
-                         n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+                         n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)], q_thread);
         __syncthreads();
 
         for (int i = 0; i < 7; i++)
@@ -627,11 +632,11 @@ namespace gpuntt
 
             CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
                              sharedmemorys[shr_in][in_shared_address + t],
-                             n1_root_of_unity_table[(shr_address >> t_)],
+                             n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                              q_thread);
             CooleyTukeyUnit_(sharedmemorys[shr_in + 2][in_shared_address],
                              sharedmemorys[shr_in + 2][in_shared_address + t],
-                             n1_root_of_unity_table[(shr_address >> t_)],
+                             n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                              q_thread);
             __syncthreads();
         }
@@ -746,7 +751,8 @@ namespace gpuntt
     __global__ void FourStepPartialForwardCore1(
         T* polynomial_in, Root<T>* n2_root_of_unity_table,
         Root<T>* w_root_of_unity_table, Modulus<T>* modulus, int small_npower,
-        int loc1, int loc2, int loop, int n_power, int mod_count)
+        int loc1, int loc2, int loop, int n_power, int mod_count,
+        int n2_root_size, int w_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -761,6 +767,8 @@ namespace gpuntt
 
         int q_index = block_z % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n2_root_offset = q_index * n2_root_size;
+        int w_root_offset = q_index * w_root_size;
 
         int grid = (block_y << n_power__);
         int divindex = block_z << n_power;
@@ -774,9 +782,9 @@ namespace gpuntt
         T mult_2 = polynomial_in[load_store_address + loc2 + divindex];
 
         mult_1 = OPERATOR_GPU<T>::mult(
-            mult_1, w_root_of_unity_table[load_store_address], q_thread);
+            mult_1, w_root_of_unity_table[w_root_offset + load_store_address], q_thread);
         mult_2 = OPERATOR_GPU<T>::mult(
-            mult_2, w_root_of_unity_table[load_store_address + loc2], q_thread);
+            mult_2, w_root_of_unity_table[w_root_offset + load_store_address + loc2], q_thread);
 
         sharedmemorys[shared_addresss] = mult_1;
         sharedmemorys[shared_addresss + 256] = mult_2;
@@ -790,7 +798,7 @@ namespace gpuntt
         {
             CooleyTukeyUnit_(sharedmemorys[in_shared_address],
                              sharedmemorys[in_shared_address + t],
-                             n2_root_of_unity_table[(global_addresss >> t_2)],
+                             n2_root_of_unity_table[n2_root_offset + (global_addresss >> t_2)],
                              q_thread);
             __syncthreads();
 
@@ -884,7 +892,7 @@ namespace gpuntt
                                                 Root<T>* n2_root_of_unity_table,
                                                 Modulus<T>* modulus,
                                                 int small_npower, int n_power,
-                                                int mod_count)
+                                                int mod_count, int n2_root_size)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         int block_y = blockIdx.y;
@@ -903,6 +911,7 @@ namespace gpuntt
 
         int q_index = block_z % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n2_root_offset = q_index * n2_root_size;
 
         int address = dividx + ((idx >> t_2) << t_2) + idx;
 
@@ -917,7 +926,7 @@ namespace gpuntt
         {
             CooleyTukeyUnit_(sharedmemorys[shrd_address],
                              sharedmemorys[shrd_address + t],
-                             n2_root_of_unity_table[(idx >> t_2)], q_thread);
+                             n2_root_of_unity_table[n2_root_offset + (idx >> t_2)], q_thread);
 
             t = t >> 1;
             t_2 -= 1;
@@ -932,7 +941,7 @@ namespace gpuntt
         {
             CooleyTukeyUnit_(sharedmemorys[shrd_address],
                              sharedmemorys[shrd_address + t],
-                             n2_root_of_unity_table[(idx >> t_2)], q_thread);
+                             n2_root_of_unity_table[n2_root_offset + (idx >> t_2)], q_thread);
 
             t = t >> 1;
             t_2 -= 1;
@@ -945,7 +954,7 @@ namespace gpuntt
 
         CooleyTukeyUnit_(sharedmemorys[shrd_address],
                          sharedmemorys[shrd_address + t],
-                         n2_root_of_unity_table[(idx >> t_2)], q_thread);
+                         n2_root_of_unity_table[n2_root_offset + (idx >> t_2)], q_thread);
         polynomial_in[address + divindex] = sharedmemorys[shrd_address];
         polynomial_in[address + t + divindex] = sharedmemorys[shrd_address + t];
     }
@@ -1023,7 +1032,8 @@ namespace gpuntt
     __global__ void FourStepPartialForwardCore(
         T* polynomial_in, Root<T>* n2_root_of_unity_table,
         Root<T>* w_root_of_unity_table, Modulus<T>* modulus, int small_npower,
-        int t1, int LOOP, int n_power, int mod_count)
+        int t1, int LOOP, int n_power, int mod_count,
+        int n2_root_size, int w_root_size)
     {
         int local_idx = threadIdx.x;
         int block_x = blockIdx.x;
@@ -1040,6 +1050,8 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n2_root_offset = q_index * n2_root_size;
+        int w_root_offset = q_index * w_root_size;
 
         int address = dividx + ((local_idx >> t_2) << t_2) + local_idx;
 
@@ -1049,10 +1061,10 @@ namespace gpuntt
         T mult_1 = polynomial_in[address + divindex];
         T mult_2 = polynomial_in[address + t + divindex];
 
-        mult_1 = OPERATOR_GPU<T>::mult(mult_1, w_root_of_unity_table[address],
+        mult_1 = OPERATOR_GPU<T>::mult(mult_1, w_root_of_unity_table[w_root_offset + address],
                                        q_thread);
         mult_2 = OPERATOR_GPU<T>::mult(
-            mult_2, w_root_of_unity_table[address + t], q_thread);
+            mult_2, w_root_of_unity_table[w_root_offset + address + t], q_thread);
 
         sharedmemorys[shrd_address] = mult_1;
         sharedmemorys[shrd_address + t] = mult_2;
@@ -1062,7 +1074,7 @@ namespace gpuntt
         {
             CooleyTukeyUnit_(
                 sharedmemorys[shrd_address], sharedmemorys[shrd_address + t],
-                n2_root_of_unity_table[(local_idx >> t_2)], q_thread);
+                n2_root_of_unity_table[n2_root_offset + (local_idx >> t_2)], q_thread);
 
             t = t >> 1;
             t_2 -= 1;
@@ -1077,7 +1089,7 @@ namespace gpuntt
         {
             CooleyTukeyUnit_(
                 sharedmemorys[shrd_address], sharedmemorys[shrd_address + t],
-                n2_root_of_unity_table[(local_idx >> t_2)], q_thread);
+                n2_root_of_unity_table[n2_root_offset + (local_idx >> t_2)], q_thread);
 
             t = t >> 1;
             t_2 -= 1;
@@ -1089,7 +1101,7 @@ namespace gpuntt
 
         CooleyTukeyUnit_(sharedmemorys[shrd_address],
                          sharedmemorys[shrd_address + t],
-                         n2_root_of_unity_table[(local_idx >> t_2)], q_thread);
+                         n2_root_of_unity_table[n2_root_offset + (local_idx >> t_2)], q_thread);
         polynomial_in[address + divindex] = sharedmemorys[shrd_address];
         polynomial_in[address + t + divindex] = sharedmemorys[shrd_address + t];
     }
@@ -1178,7 +1190,8 @@ namespace gpuntt
     __global__ void
     FourStepInverseCoreT1(T* polynomial_in, T* polynomial_out,
                           Root<T>* n1_root_of_unity_table, Modulus<T>* modulus,
-                          int index1, int index2, int n_power, int mod_count)
+                          int index1, int index2, int n_power, int mod_count,
+                          int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -1191,6 +1204,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -1215,12 +1229,12 @@ namespace gpuntt
         GentlemanSandeUnit_(
             sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
             sharedmemorys[(idx_y << 1) + global_index1][in_shared_address + t],
-            n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+            n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)], q_thread);
         GentlemanSandeUnit_(
             sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address],
             sharedmemorys[(idx_y << 1) + global_index1 + 16]
                          [in_shared_address + t],
-            n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+            n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)], q_thread);
         __syncthreads();
 
         for (int i = 0; i < 4; i++)
@@ -1235,12 +1249,12 @@ namespace gpuntt
                 sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
                 sharedmemorys[(idx_y << 1) + global_index1]
                              [in_shared_address + t],
-                n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+                n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)], q_thread);
             GentlemanSandeUnit_(sharedmemorys[(idx_y << 1) + global_index1 + 16]
                                              [in_shared_address],
                                 sharedmemorys[(idx_y << 1) + global_index1 + 16]
                                              [in_shared_address + t],
-                                n1_root_of_unity_table[(global_index2 >> t_)],
+                                n1_root_of_unity_table[n1_root_offset + (global_index2 >> t_)],
                                 q_thread);
             __syncthreads();
         }
@@ -1346,7 +1360,7 @@ namespace gpuntt
                                           Root<T>* n1_root_of_unity_table,
                                           Modulus<T>* modulus, int index1,
                                           int index2, int index3, int n_power,
-                                          int mod_count)
+                                          int mod_count, int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -1359,6 +1373,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -1383,10 +1398,10 @@ namespace gpuntt
 
         GentlemanSandeUnit_(sharedmemorys[idx_y][in_shared_address],
                             sharedmemorys[idx_y][in_shared_address + t],
-                            n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+                            n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)], q_thread);
         GentlemanSandeUnit_(sharedmemorys[idx_y + 8][in_shared_address],
                             sharedmemorys[idx_y + 8][in_shared_address + t],
-                            n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+                            n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)], q_thread);
         __syncthreads();
 
         for (int i = 0; i < 5; i++)
@@ -1398,11 +1413,11 @@ namespace gpuntt
 
             GentlemanSandeUnit_(sharedmemorys[idx_y][in_shared_address],
                                 sharedmemorys[idx_y][in_shared_address + t],
-                                n1_root_of_unity_table[(idx_x >> t_)],
+                                n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)],
                                 q_thread);
             GentlemanSandeUnit_(sharedmemorys[idx_y + 8][in_shared_address],
                                 sharedmemorys[idx_y + 8][in_shared_address + t],
-                                n1_root_of_unity_table[(idx_x >> t_)],
+                                n1_root_of_unity_table[n1_root_offset + (idx_x >> t_)],
                                 q_thread);
             __syncthreads();
         }
@@ -1516,7 +1531,7 @@ namespace gpuntt
                                           Root<T>* n1_root_of_unity_table,
                                           Modulus<T>* modulus, int index1,
                                           int index2, int index3, int n_power,
-                                          int mod_count)
+                                          int mod_count, int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -1529,6 +1544,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -1556,11 +1572,11 @@ namespace gpuntt
 
         GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
                             sharedmemorys[shr_in][in_shared_address + t],
-                            n1_root_of_unity_table[(shr_address >> t_)],
+                            n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                             q_thread);
         GentlemanSandeUnit_(sharedmemorys[shr_in + 4][in_shared_address],
                             sharedmemorys[shr_in + 4][in_shared_address + t],
-                            n1_root_of_unity_table[(shr_address >> t_)],
+                            n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                             q_thread);
         __syncthreads();
 
@@ -1573,12 +1589,12 @@ namespace gpuntt
 
             GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
                                 sharedmemorys[shr_in][in_shared_address + t],
-                                n1_root_of_unity_table[(shr_address >> t_)],
+                                n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                                 q_thread);
             GentlemanSandeUnit_(
                 sharedmemorys[shr_in + 4][in_shared_address],
                 sharedmemorys[shr_in + 4][in_shared_address + t],
-                n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+                n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)], q_thread);
             __syncthreads();
         }
         __syncthreads();
@@ -1696,7 +1712,7 @@ namespace gpuntt
                                           Root<T>* n1_root_of_unity_table,
                                           Modulus<T>* modulus, int index1,
                                           int index2, int index3, int n_power,
-                                          int mod_count)
+                                          int mod_count, int n1_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -1709,6 +1725,7 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n1_root_offset = q_index * n1_root_size;
 
         int idx_index = idx_x + (idx_y << 5);
         int global_addresss = idx_index + (block_x << 10);
@@ -1736,11 +1753,11 @@ namespace gpuntt
 
         GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
                             sharedmemorys[shr_in][in_shared_address + t],
-                            n1_root_of_unity_table[(shr_address >> t_)],
+                            n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                             q_thread);
         GentlemanSandeUnit_(sharedmemorys[shr_in + 2][in_shared_address],
                             sharedmemorys[shr_in + 2][in_shared_address + t],
-                            n1_root_of_unity_table[(shr_address >> t_)],
+                            n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                             q_thread);
         __syncthreads();
 
@@ -1753,12 +1770,12 @@ namespace gpuntt
 
             GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
                                 sharedmemorys[shr_in][in_shared_address + t],
-                                n1_root_of_unity_table[(shr_address >> t_)],
+                                n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)],
                                 q_thread);
             GentlemanSandeUnit_(
                 sharedmemorys[shr_in + 2][in_shared_address],
                 sharedmemorys[shr_in + 2][in_shared_address + t],
-                n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+                n1_root_of_unity_table[n1_root_offset + (shr_address >> t_)], q_thread);
             __syncthreads();
         }
         __syncthreads();
@@ -1875,7 +1892,8 @@ namespace gpuntt
     __global__ void FourStepPartialInverseCore(
         T* polynomial_in, Root<T>* n2_root_of_unity_table,
         Root<T>* w_root_of_unity_table, Modulus<T>* modulus, int small_npower,
-        int LOOP, Ninverse<T>* inverse, int poly_n_power, int mod_count)
+        int LOOP, Ninverse<T>* inverse, int poly_n_power, int mod_count,
+        int n2_root_size, int w_root_size)
     {
         int local_idx = threadIdx.x;
         int block_x = blockIdx.x;
@@ -1893,6 +1911,8 @@ namespace gpuntt
 
         int q_index = block_y % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n2_root_offset = q_index * n2_root_size;
+        int w_root_offset = q_index * w_root_size;
 
         int address = dividx + ((local_idx >> t_2) << t_2) + local_idx;
 
@@ -1902,10 +1922,10 @@ namespace gpuntt
         T mult_1 = polynomial_in[address + divindex];
         T mult_2 = polynomial_in[address + t + divindex];
 
-        mult_1 = OPERATOR_GPU<T>::mult(mult_1, w_root_of_unity_table[address],
+        mult_1 = OPERATOR_GPU<T>::mult(mult_1, w_root_of_unity_table[w_root_offset + address],
                                        q_thread);
         mult_2 = OPERATOR_GPU<T>::mult(
-            mult_2, w_root_of_unity_table[address + t], q_thread);
+            mult_2, w_root_of_unity_table[w_root_offset + address + t], q_thread);
 
         sharedmemorys[shrd_address] = mult_1;
         sharedmemorys[shrd_address + t] = mult_2;
@@ -1915,7 +1935,7 @@ namespace gpuntt
         {
             GentlemanSandeUnit_(
                 sharedmemorys[shrd_address], sharedmemorys[shrd_address + t],
-                n2_root_of_unity_table[(local_idx >> t_2)], q_thread);
+                n2_root_of_unity_table[n2_root_offset + (local_idx >> t_2)], q_thread);
 
             t = t << 1;
             t_2 += 1;
@@ -1929,15 +1949,15 @@ namespace gpuntt
 
         GentlemanSandeUnit_(
             sharedmemorys[shrd_address], sharedmemorys[shrd_address + t],
-            n2_root_of_unity_table[(local_idx >> t_2)], q_thread);
+            n2_root_of_unity_table[n2_root_offset + (local_idx >> t_2)], q_thread);
         __syncthreads();
 
-        T temp1 = OPERATOR_GPU<T>::mult(sharedmemorys[shrd_address], inverse[0],
+        T temp1 = OPERATOR_GPU<T>::mult(sharedmemorys[shrd_address], inverse[q_index],
                                         q_thread);
         polynomial_in[address + divindex] = temp1;
 
         T temp2 = OPERATOR_GPU<T>::mult(sharedmemorys[shrd_address + t],
-                                        inverse[0], q_thread);
+                                        inverse[q_index], q_thread);
         polynomial_in[address + t + divindex] = temp2;
     }
 
@@ -2018,7 +2038,8 @@ namespace gpuntt
                                                 Root<T>* w_root_of_unity_table,
                                                 Modulus<T>* modulus,
                                                 int small_npower,
-                                                int poly_n_power, int mod_count)
+                                                int poly_n_power, int mod_count,
+                                                int n2_root_size, int w_root_size)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         int block_y = blockIdx.y;
@@ -2038,6 +2059,8 @@ namespace gpuntt
 
         int q_index = block_z % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n2_root_offset = q_index * n2_root_size;
+        int w_root_offset = q_index * w_root_size;
 
         int address = dividx + ((idx >> t_2) << t_2) + idx;
 
@@ -2047,10 +2070,10 @@ namespace gpuntt
         T mult_1 = polynomial_in[address + divindex];
         T mult_2 = polynomial_in[address + t + divindex];
 
-        mult_1 = OPERATOR_GPU<T>::mult(mult_1, w_root_of_unity_table[address],
+        mult_1 = OPERATOR_GPU<T>::mult(mult_1, w_root_of_unity_table[w_root_offset + address],
                                        q_thread);
         mult_2 = OPERATOR_GPU<T>::mult(
-            mult_2, w_root_of_unity_table[address + t], q_thread);
+            mult_2, w_root_of_unity_table[w_root_offset + address + t], q_thread);
 
         sharedmemorys[shrd_address] = mult_1;
         sharedmemorys[shrd_address + t] = mult_2;
@@ -2059,7 +2082,7 @@ namespace gpuntt
         {
             GentlemanSandeUnit_(sharedmemorys[shrd_address],
                                 sharedmemorys[shrd_address + t],
-                                n2_root_of_unity_table[(idx >> t_2)], q_thread);
+                                n2_root_of_unity_table[n2_root_offset + (idx >> t_2)], q_thread);
 
             t = t << 1;
             t_2 += 1;
@@ -2073,7 +2096,7 @@ namespace gpuntt
 
         GentlemanSandeUnit_(sharedmemorys[shrd_address],
                             sharedmemorys[shrd_address + t],
-                            n2_root_of_unity_table[(idx >> t_2)], q_thread);
+                            n2_root_of_unity_table[n2_root_offset + (idx >> t_2)], q_thread);
 
         polynomial_in[address + divindex] = sharedmemorys[shrd_address];
         polynomial_in[address + t + divindex] = sharedmemorys[shrd_address + t];
@@ -2149,7 +2172,7 @@ namespace gpuntt
     __global__ void FourStepPartialInverseCore2(
         T* polynomial_in, Root<T>* n2_root_of_unity_table, Modulus<T>* modulus,
         int small_npower, int t1, int loc1, int loc2, int loc3, int loop,
-        Ninverse<T>* inverse, int poly_n_power, int mod_count)
+        Ninverse<T>* inverse, int poly_n_power, int mod_count, int n2_root_size)
     {
         int idx_x = threadIdx.x;
         int idx_y = threadIdx.y;
@@ -2166,6 +2189,7 @@ namespace gpuntt
 
         int q_index = block_z % mod_count;
         Modulus<T> q_thread = modulus[q_index];
+        int n2_root_offset = q_index * n2_root_size;
 
         int grid = block_y << small_npower_;
 
@@ -2188,7 +2212,7 @@ namespace gpuntt
 
         GentlemanSandeUnit_(sharedmemorys[in_shared_address],
                             sharedmemorys[in_shared_address + t],
-                            n2_root_of_unity_table[(global_addresss >> t_2)],
+                            n2_root_of_unity_table[n2_root_offset + (global_addresss >> t_2)],
                             q_thread);
         __syncthreads();
 
@@ -2204,17 +2228,17 @@ namespace gpuntt
             GentlemanSandeUnit_(
                 sharedmemorys[in_shared_address],
                 sharedmemorys[in_shared_address + t],
-                n2_root_of_unity_table[(global_addresss >> t_2)], q_thread);
+                n2_root_of_unity_table[n2_root_offset + (global_addresss >> t_2)], q_thread);
 
             __syncthreads();
         }
 
         T temp1 = OPERATOR_GPU<T>::mult(sharedmemorys[shared_addresss],
-                                        inverse[0], q_thread);
+                                        inverse[q_index], q_thread);
         polynomial_in[load_store_address + divindex] = temp1;
 
         T temp2 = OPERATOR_GPU<T>::mult(sharedmemorys[shared_addresss + 256],
-                                        inverse[0], q_thread);
+                                        inverse[q_index], q_thread);
         polynomial_in[load_store_address + loc2 + divindex] = temp2;
     }
 
@@ -2298,6 +2322,72 @@ namespace gpuntt
                   ntt4step_rns_configuration<T> cfg, int batch_size,
                   int mod_count)
     {
+        // Compute table sizes based on n_power
+        // The 4-step NTT uses specific n1/n2 matrix dimensions for each n_power
+        // n1_root_size = n1 >> 1, n2_root_size = n2 >> 1
+        int n1_root_size, n2_root_size;
+        int w_root_size = 1 << cfg.n_power;  // N
+
+        switch (cfg.n_power)
+        {
+            case 12:
+                n1_root_size = 16;
+                n2_root_size = 64;
+                break;  // n1=32, n2=128
+            case 13:
+                n1_root_size = 16;
+                n2_root_size = 128;
+                break;  // n1=32, n2=256
+            case 14:
+                n1_root_size = 16;
+                n2_root_size = 256;
+                break;  // n1=32, n2=512
+            case 15:
+                n1_root_size = 32;
+                n2_root_size = 256;
+                break;  // n1=64, n2=512
+            case 16:
+                n1_root_size = 64;
+                n2_root_size = 256;
+                break;  // n1=128, n2=512
+            case 17:
+                n1_root_size = 16;
+                n2_root_size = 2048;
+                break;  // n1=32, n2=4096
+            case 18:
+                n1_root_size = 16;
+                n2_root_size = 4096;
+                break;  // n1=32, n2=8192
+            case 19:
+                n1_root_size = 16;
+                n2_root_size = 8192;
+                break;  // n1=32, n2=16384
+            case 20:
+                n1_root_size = 16;
+                n2_root_size = 16384;
+                break;  // n1=32, n2=32768
+            case 21:
+                n1_root_size = 32;
+                n2_root_size = 16384;
+                break;  // n1=64, n2=32768
+            case 22:
+                n1_root_size = 64;
+                n2_root_size = 16384;
+                break;  // n1=128, n2=32768
+            case 23:
+                n1_root_size = 64;
+                n2_root_size = 32768;
+                break;  // n1=128, n2=65536
+            case 24:
+                n1_root_size = 128;
+                n2_root_size = 32768;
+                break;  // n1=256, n2=65536
+            default:
+                n1_root_size = 0;
+                n2_root_size = 0;
+                break;
+        }
+
         switch (cfg.ntt_type)
         {
             case FORWARD:
@@ -2308,13 +2398,13 @@ namespace gpuntt
                         FourStepForwardCoreT1<<<dim3(4, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 7, 1024, 12, mod_count);
+                            modulus, 7, 1024, 12, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore<<<dim3(32, batch_size),
                                                      64>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 7, 6, 1, 12,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 13:
@@ -2322,13 +2412,13 @@ namespace gpuntt
                         FourStepForwardCoreT1<<<dim3(8, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 8, 2048, 13, mod_count);
+                            modulus, 8, 2048, 13, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore<<<dim3(32, batch_size),
                                                      128>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 8, 7, 2, 13,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 14:
@@ -2336,13 +2426,13 @@ namespace gpuntt
                         FourStepForwardCoreT1<<<dim3(16, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 9, 4096, 14, mod_count);
+                            modulus, 9, 4096, 14, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore<<<dim3(32, batch_size),
                                                      256>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 9, 8, 3, 14,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 15:
@@ -2350,13 +2440,13 @@ namespace gpuntt
                         FourStepForwardCoreT2<<<dim3(32, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 9, 10, 8192, 15, mod_count);
+                            modulus, 9, 10, 8192, 15, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore<<<dim3(64, batch_size),
                                                      256>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 9, 8, 3, 15,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 16:
@@ -2364,13 +2454,13 @@ namespace gpuntt
                         FourStepForwardCoreT3<<<dim3(64, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 9, 11, 16384, 16, mod_count);
+                            modulus, 9, 11, 16384, 16, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore<<<dim3(128, batch_size),
                                                      256>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 9, 8, 3, 16,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 17:
@@ -2378,18 +2468,18 @@ namespace gpuntt
                         FourStepForwardCoreT1<<<dim3(128, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 12, 32768, 17, mod_count);
+                            modulus, 12, 32768, 17, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<dim3(8, 32, batch_size),
                                                       dim3(64, 4)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 12, 6, 2048, 3, 17,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<dim3(8, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table, modulus, 12, 17,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 18:
@@ -2397,18 +2487,18 @@ namespace gpuntt
                         FourStepForwardCoreT1<<<dim3(256, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 13, 65536, 18, mod_count);
+                            modulus, 13, 65536, 18, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<dim3(16, 32, batch_size),
                                                       dim3(32, 8)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 13, 5, 4096, 4, 18,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<dim3(16, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table, modulus, 13, 18,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 19:
@@ -2416,18 +2506,18 @@ namespace gpuntt
                         FourStepForwardCoreT1<<<dim3(512, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 14, 131072, 19, mod_count);
+                            modulus, 14, 131072, 19, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<dim3(32, 32, batch_size),
                                                       dim3(16, 16)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 14, 4, 8192, 5, 19,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<dim3(32, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table, modulus, 14, 19,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 20:
@@ -2435,18 +2525,18 @@ namespace gpuntt
                         FourStepForwardCoreT1<<<dim3(1024, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 15, 262144, 20, mod_count);
+                            modulus, 15, 262144, 20, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<dim3(64, 32, batch_size),
                                                       dim3(8, 32)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 15, 3, 16384, 6, 20,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<dim3(64, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table, modulus, 15, 20,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 21:
@@ -2454,18 +2544,18 @@ namespace gpuntt
                         FourStepForwardCoreT2<<<dim3(2048, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 15, 16, 524288, 21, mod_count);
+                            modulus, 15, 16, 524288, 21, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<dim3(64, 64, batch_size),
                                                       dim3(8, 32)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 15, 3, 16384, 6, 21,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<dim3(64, 64, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table, modulus, 15, 21,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 22:
@@ -2473,18 +2563,18 @@ namespace gpuntt
                         FourStepForwardCoreT3<<<dim3(4096, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 15, 17, 1048576, 22, mod_count);
+                            modulus, 15, 17, 1048576, 22, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<dim3(64, 128, batch_size),
                                                       dim3(8, 32)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 15, 3, 16384, 6, 22,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<dim3(64, 128, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table, modulus, 15, 22,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 23:
@@ -2492,18 +2582,18 @@ namespace gpuntt
                         FourStepForwardCoreT3<<<dim3(8192, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 16, 18, 2097152, 23, mod_count);
+                            modulus, 16, 18, 2097152, 23, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<
                             dim3(128, 128, batch_size), dim3(4, 64)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 16, 2, 32768, 7, 23,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<
                             dim3(128, 128, batch_size), 256>>>(
                             device_out, n2_root_of_unity_table, modulus, 16, 23,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 24:
@@ -2511,18 +2601,18 @@ namespace gpuntt
                         FourStepForwardCoreT4<<<dim3(16384, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 16, 19, 4194304, 24, mod_count);
+                            modulus, 16, 19, 4194304, 24, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore1<<<
                             dim3(128, 256, batch_size), dim3(4, 64)>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 16, 2, 32768, 7, 24,
-                            mod_count);
+                            mod_count, n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialForwardCore2<<<
                             dim3(128, 256, batch_size), 256>>>(
                             device_out, n2_root_of_unity_table, modulus, 16, 24,
-                            mod_count);
+                            mod_count, n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
 
@@ -2541,13 +2631,14 @@ namespace gpuntt
                         FourStepInverseCoreT1<<<dim3(4, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 7, 1024, 12, mod_count);
+                            modulus, 7, 1024, 12, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore<<<dim3(32, batch_size),
                                                      64>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 7, 6,
-                            cfg.mod_inverse, 12, mod_count);
+                            cfg.mod_inverse, 12, mod_count, n2_root_size,
+                            w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 13:
@@ -2555,13 +2646,14 @@ namespace gpuntt
                         FourStepInverseCoreT1<<<dim3(8, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 8, 2048, 13, mod_count);
+                            modulus, 8, 2048, 13, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore<<<dim3(32, batch_size),
                                                      128>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 8, 7,
-                            cfg.mod_inverse, 13, mod_count);
+                            cfg.mod_inverse, 13, mod_count, n2_root_size,
+                            w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 14:
@@ -2569,13 +2661,14 @@ namespace gpuntt
                         FourStepInverseCoreT1<<<dim3(16, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 9, 4096, 14, mod_count);
+                            modulus, 9, 4096, 14, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore<<<dim3(32, batch_size),
                                                      256>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 9, 8,
-                            cfg.mod_inverse, 14, mod_count);
+                            cfg.mod_inverse, 14, mod_count, n2_root_size,
+                            w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 15:
@@ -2583,13 +2676,14 @@ namespace gpuntt
                         FourStepInverseCoreT2<<<dim3(32, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 9, 10, 8192, 15, mod_count);
+                            modulus, 9, 10, 8192, 15, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore<<<dim3(64, batch_size),
                                                      256>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 9, 8,
-                            cfg.mod_inverse, 15, mod_count);
+                            cfg.mod_inverse, 15, mod_count, n2_root_size,
+                            w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 16:
@@ -2597,13 +2691,14 @@ namespace gpuntt
                         FourStepInverseCoreT3<<<dim3(64, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 9, 11, 16384, 16, mod_count);
+                            modulus, 9, 11, 16384, 16, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore<<<dim3(128, batch_size),
                                                      256>>>(
                             device_out, n2_root_of_unity_table,
                             W_root_of_unity_table, modulus, 9, 8,
-                            cfg.mod_inverse, 16, mod_count);
+                            cfg.mod_inverse, 16, mod_count, n2_root_size,
+                            w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 17:
@@ -2611,17 +2706,19 @@ namespace gpuntt
                         FourStepInverseCoreT1<<<dim3(128, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 12, 32768, 17, mod_count);
+                            modulus, 12, 32768, 17, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<dim3(8, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 12, 17, mod_count);
+                            W_root_of_unity_table, modulus, 12, 17, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<dim3(8, 32, batch_size),
                                                       dim3(64, 4)>>>(
                             device_out, n2_root_of_unity_table, modulus, 12, 9,
-                            6, 2048, 9, 2, cfg.mod_inverse, 17, mod_count);
+                            6, 2048, 9, 2, cfg.mod_inverse, 17, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 18:
@@ -2629,17 +2726,19 @@ namespace gpuntt
                         FourStepInverseCoreT1<<<dim3(256, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 13, 65536, 18, mod_count);
+                            modulus, 13, 65536, 18, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<dim3(16, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 13, 18, mod_count);
+                            W_root_of_unity_table, modulus, 13, 18, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<dim3(16, 32, batch_size),
                                                       dim3(32, 8)>>>(
                             device_out, n2_root_of_unity_table, modulus, 13, 9,
-                            5, 4096, 9, 3, cfg.mod_inverse, 18, mod_count);
+                            5, 4096, 9, 3, cfg.mod_inverse, 18, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 19:
@@ -2647,17 +2746,19 @@ namespace gpuntt
                         FourStepInverseCoreT1<<<dim3(512, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 14, 131072, 19, mod_count);
+                            modulus, 14, 131072, 19, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<dim3(32, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 14, 19, mod_count);
+                            W_root_of_unity_table, modulus, 14, 19, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<dim3(32, 32, batch_size),
                                                       dim3(16, 16)>>>(
                             device_out, n2_root_of_unity_table, modulus, 14, 9,
-                            4, 8192, 9, 4, cfg.mod_inverse, 19, mod_count);
+                            4, 8192, 9, 4, cfg.mod_inverse, 19, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 20:
@@ -2665,17 +2766,19 @@ namespace gpuntt
                         FourStepInverseCoreT1<<<dim3(1024, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 15, 262144, 20, mod_count);
+                            modulus, 15, 262144, 20, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<dim3(64, 32, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 15, 20, mod_count);
+                            W_root_of_unity_table, modulus, 15, 20, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<dim3(64, 32, batch_size),
                                                       dim3(8, 32)>>>(
                             device_out, n2_root_of_unity_table, modulus, 15, 9,
-                            3, 16384, 9, 5, cfg.mod_inverse, 20, mod_count);
+                            3, 16384, 9, 5, cfg.mod_inverse, 20, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 21:
@@ -2683,17 +2786,19 @@ namespace gpuntt
                         FourStepInverseCoreT2<<<dim3(2048, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 15, 16, 524288, 21, mod_count);
+                            modulus, 15, 16, 524288, 21, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<dim3(64, 64, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 15, 21, mod_count);
+                            W_root_of_unity_table, modulus, 15, 21, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<dim3(64, 64, batch_size),
                                                       dim3(8, 32)>>>(
                             device_out, n2_root_of_unity_table, modulus, 15, 9,
-                            3, 16384, 9, 5, cfg.mod_inverse, 21, mod_count);
+                            3, 16384, 9, 5, cfg.mod_inverse, 21, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 22:
@@ -2701,17 +2806,19 @@ namespace gpuntt
                         FourStepInverseCoreT3<<<dim3(4096, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 15, 17, 1048576, 22, mod_count);
+                            modulus, 15, 17, 1048576, 22, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<dim3(64, 128, batch_size),
                                                       256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 15, 22, mod_count);
+                            W_root_of_unity_table, modulus, 15, 22, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<dim3(64, 128, batch_size),
                                                       dim3(8, 32)>>>(
                             device_out, n2_root_of_unity_table, modulus, 15, 9,
-                            3, 16384, 9, 5, cfg.mod_inverse, 22, mod_count);
+                            3, 16384, 9, 5, cfg.mod_inverse, 22, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 23:
@@ -2719,17 +2826,19 @@ namespace gpuntt
                         FourStepInverseCoreT3<<<dim3(8192, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 16, 18, 2097152, 23, mod_count);
+                            modulus, 16, 18, 2097152, 23, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<
                             dim3(128, 128, batch_size), 256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 16, 23, mod_count);
+                            W_root_of_unity_table, modulus, 16, 23, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<
                             dim3(128, 128, batch_size), dim3(4, 64)>>>(
                             device_out, n2_root_of_unity_table, modulus, 16, 9,
-                            2, 32768, 9, 6, cfg.mod_inverse, 23, mod_count);
+                            2, 32768, 9, 6, cfg.mod_inverse, 23, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
                     case 24:
@@ -2737,17 +2846,19 @@ namespace gpuntt
                         FourStepInverseCoreT4<<<dim3(16384, batch_size),
                                                 dim3(32, 8)>>>(
                             device_in, device_out, n1_root_of_unity_table,
-                            modulus, 16, 19, 4194304, 24, mod_count);
+                            modulus, 16, 19, 4194304, 24, mod_count, n1_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore1<<<
                             dim3(128, 256, batch_size), 256>>>(
                             device_out, n2_root_of_unity_table,
-                            W_root_of_unity_table, modulus, 16, 24, mod_count);
+                            W_root_of_unity_table, modulus, 16, 24, mod_count,
+                            n2_root_size, w_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         FourStepPartialInverseCore2<<<
                             dim3(128, 256, batch_size), dim3(4, 64)>>>(
                             device_out, n2_root_of_unity_table, modulus, 16, 9,
-                            2, 32768, 9, 6, cfg.mod_inverse, 24, mod_count);
+                            2, 32768, 9, 6, cfg.mod_inverse, 24, mod_count,
+                            n2_root_size);
                         GPUNTT_CUDA_CHECK(cudaGetLastError());
                         break;
 
@@ -3305,13 +3416,15 @@ namespace gpuntt
     FourStepForwardCoreT1<Data32>(Data32* polynomial_in, Data32* polynomial_out,
                                   Root<Data32>* n1_root_of_unity_table,
                                   Modulus<Data32>* modulus, int index1,
-                                  int index2, int n_power, int mod_count);
+                                  int index2, int n_power, int mod_count,
+                                  int n1_root_size);
 
     template __global__ void
     FourStepForwardCoreT1<Data64>(Data64* polynomial_in, Data64* polynomial_out,
                                   Root<Data64>* n1_root_of_unity_table,
                                   Modulus<Data64>* modulus, int index1,
-                                  int index2, int n_power, int mod_count);
+                                  int index2, int n_power, int mod_count,
+                                  int n1_root_size);
 
     template __global__ void
     FourStepForwardCoreT1<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3328,12 +3441,14 @@ namespace gpuntt
     template __global__ void FourStepForwardCoreT2<Data32>(
         Data32* polynomial_in, Data32* polynomial_out,
         Root<Data32>* n1_root_of_unity_table, Modulus<Data32>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void FourStepForwardCoreT2<Data64>(
         Data64* polynomial_in, Data64* polynomial_out,
         Root<Data64>* n1_root_of_unity_table, Modulus<Data64>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void
     FourStepForwardCoreT2<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3350,12 +3465,14 @@ namespace gpuntt
     template __global__ void FourStepForwardCoreT3<Data32>(
         Data32* polynomial_in, Data32* polynomial_out,
         Root<Data32>* n1_root_of_unity_table, Modulus<Data32>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void FourStepForwardCoreT3<Data64>(
         Data64* polynomial_in, Data64* polynomial_out,
         Root<Data64>* n1_root_of_unity_table, Modulus<Data64>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void
     FourStepForwardCoreT3<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3372,12 +3489,14 @@ namespace gpuntt
     template __global__ void FourStepForwardCoreT4<Data32>(
         Data32* polynomial_in, Data32* polynomial_out,
         Root<Data32>* n1_root_of_unity_table, Modulus<Data32>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void FourStepForwardCoreT4<Data64>(
         Data64* polynomial_in, Data64* polynomial_out,
         Root<Data64>* n1_root_of_unity_table, Modulus<Data64>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void
     FourStepForwardCoreT4<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3395,13 +3514,13 @@ namespace gpuntt
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
         Root<Data32>* w_root_of_unity_table, Modulus<Data32>* modulus,
         int small_npower, int loc1, int loc2, int loop, int n_power,
-        int mod_count);
+        int mod_count, int n2_root_size, int w_root_size);
 
     template __global__ void FourStepPartialForwardCore1<Data64>(
         Data64* polynomial_in, Root<Data64>* n2_root_of_unity_table,
         Root<Data64>* w_root_of_unity_table, Modulus<Data64>* modulus,
         int small_npower, int loc1, int loc2, int loop, int n_power,
-        int mod_count);
+        int mod_count, int n2_root_size, int w_root_size);
 
     template __global__ void FourStepPartialForwardCore1<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
@@ -3415,11 +3534,13 @@ namespace gpuntt
 
     template __global__ void FourStepPartialForwardCore2<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
-        Modulus<Data32>* modulus, int small_npower, int n_power, int mod_count);
+        Modulus<Data32>* modulus, int small_npower, int n_power, int mod_count,
+        int n2_root_size);
 
     template __global__ void FourStepPartialForwardCore2<Data64>(
         Data64* polynomial_in, Root<Data64>* n2_root_of_unity_table,
-        Modulus<Data64>* modulus, int small_npower, int n_power, int mod_count);
+        Modulus<Data64>* modulus, int small_npower, int n_power, int mod_count,
+        int n2_root_size);
 
     template __global__ void FourStepPartialForwardCore2<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
@@ -3432,12 +3553,14 @@ namespace gpuntt
     template __global__ void FourStepPartialForwardCore<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
         Root<Data32>* w_root_of_unity_table, Modulus<Data32>* modulus,
-        int small_npower, int t1, int LOOP, int n_power, int mod_count);
+        int small_npower, int t1, int LOOP, int n_power, int mod_count,
+        int n2_root_size, int w_root_size);
 
     template __global__ void FourStepPartialForwardCore<Data64>(
         Data64* polynomial_in, Root<Data64>* n2_root_of_unity_table,
         Root<Data64>* w_root_of_unity_table, Modulus<Data64>* modulus,
-        int small_npower, int t1, int LOOP, int n_power, int mod_count);
+        int small_npower, int t1, int LOOP, int n_power, int mod_count,
+        int n2_root_size, int w_root_size);
 
     template __global__ void FourStepPartialForwardCore<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
@@ -3453,13 +3576,15 @@ namespace gpuntt
     FourStepInverseCoreT1<Data32>(Data32* polynomial_in, Data32* polynomial_out,
                                   Root<Data32>* n1_root_of_unity_table,
                                   Modulus<Data32>* modulus, int index1,
-                                  int index2, int n_power, int mod_count);
+                                  int index2, int n_power, int mod_count,
+                                  int n1_root_size);
 
     template __global__ void
     FourStepInverseCoreT1<Data64>(Data64* polynomial_in, Data64* polynomial_out,
                                   Root<Data64>* n1_root_of_unity_table,
                                   Modulus<Data64>* modulus, int index1,
-                                  int index2, int n_power, int mod_count);
+                                  int index2, int n_power, int mod_count,
+                                  int n1_root_size);
 
     template __global__ void
     FourStepInverseCoreT1<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3476,12 +3601,14 @@ namespace gpuntt
     template __global__ void FourStepInverseCoreT2<Data32>(
         Data32* polynomial_in, Data32* polynomial_out,
         Root<Data32>* n1_root_of_unity_table, Modulus<Data32>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void FourStepInverseCoreT2<Data64>(
         Data64* polynomial_in, Data64* polynomial_out,
         Root<Data64>* n1_root_of_unity_table, Modulus<Data64>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void
     FourStepInverseCoreT2<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3498,12 +3625,14 @@ namespace gpuntt
     template __global__ void FourStepInverseCoreT3<Data32>(
         Data32* polynomial_in, Data32* polynomial_out,
         Root<Data32>* n1_root_of_unity_table, Modulus<Data32>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void FourStepInverseCoreT3<Data64>(
         Data64* polynomial_in, Data64* polynomial_out,
         Root<Data64>* n1_root_of_unity_table, Modulus<Data64>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void
     FourStepInverseCoreT3<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3520,12 +3649,14 @@ namespace gpuntt
     template __global__ void FourStepInverseCoreT4<Data32>(
         Data32* polynomial_in, Data32* polynomial_out,
         Root<Data32>* n1_root_of_unity_table, Modulus<Data32>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void FourStepInverseCoreT4<Data64>(
         Data64* polynomial_in, Data64* polynomial_out,
         Root<Data64>* n1_root_of_unity_table, Modulus<Data64>* modulus,
-        int index1, int index2, int index3, int n_power, int mod_count);
+        int index1, int index2, int index3, int n_power, int mod_count,
+        int n1_root_size);
 
     template __global__ void
     FourStepInverseCoreT4<Data32>(Data32* polynomial_in, Data32* polynomial_out,
@@ -3543,13 +3674,13 @@ namespace gpuntt
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
         Root<Data32>* w_root_of_unity_table, Modulus<Data32>* modulus,
         int small_npower, int LOOP, Ninverse<Data32>* inverse, int poly_n_power,
-        int mod_count);
+        int mod_count, int n2_root_size, int w_root_size);
 
     template __global__ void FourStepPartialInverseCore<Data64>(
         Data64* polynomial_in, Root<Data64>* n2_root_of_unity_table,
         Root<Data64>* w_root_of_unity_table, Modulus<Data64>* modulus,
         int small_npower, int LOOP, Ninverse<Data64>* inverse, int poly_n_power,
-        int mod_count);
+        int mod_count, int n2_root_size, int w_root_size);
 
     template __global__ void FourStepPartialInverseCore<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
@@ -3564,12 +3695,14 @@ namespace gpuntt
     template __global__ void FourStepPartialInverseCore1<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
         Root<Data32>* w_root_of_unity_table, Modulus<Data32>* modulus,
-        int small_npower, int poly_n_power, int mod_count);
+        int small_npower, int poly_n_power, int mod_count, int n2_root_size,
+        int w_root_size);
 
     template __global__ void FourStepPartialInverseCore1<Data64>(
         Data64* polynomial_in, Root<Data64>* n2_root_of_unity_table,
         Root<Data64>* w_root_of_unity_table, Modulus<Data64>* modulus,
-        int small_npower, int poly_n_power, int mod_count);
+        int small_npower, int poly_n_power, int mod_count, int n2_root_size,
+        int w_root_size);
 
     template __global__ void FourStepPartialInverseCore1<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
@@ -3585,13 +3718,13 @@ namespace gpuntt
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,
         Modulus<Data32>* modulus, int small_npower, int t1, int loc1, int loc2,
         int loc3, int loop, Ninverse<Data32>* inverse, int poly_n_power,
-        int mod_count);
+        int mod_count, int n2_root_size);
 
     template __global__ void FourStepPartialInverseCore2<Data64>(
         Data64* polynomial_in, Root<Data64>* n2_root_of_unity_table,
         Modulus<Data64>* modulus, int small_npower, int t1, int loc1, int loc2,
         int loc3, int loop, Ninverse<Data64>* inverse, int poly_n_power,
-        int mod_count);
+        int mod_count, int n2_root_size);
 
     template __global__ void FourStepPartialInverseCore2<Data32>(
         Data32* polynomial_in, Root<Data32>* n2_root_of_unity_table,

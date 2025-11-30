@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Developer: W. Nathan Hack <nathan.hack@gmail.com>
 
-// This test verifies GPU NTT with multiple moduli (RNS-style),
+// This test verifies GPU NTT with multiple DISTINCT moduli (RNS-style),
 // where polynomials are assigned to moduli in round-robin fashion.
 // poly[i] uses modulus[i % MOD_COUNT]
 //
-// This tests the mod_count parameter functionality in GPU_NTT_Inplace
-// and GPU_INTT_Inplace, which is used in RNS-based cryptographic schemes.
+// Uses 3 distinct 61-bit NTT-friendly primes of form k * 2^32 + 1
+// This tests true RNS (Residue Number System) functionality with different
+// primes, as used in lattice-based cryptographic schemes.
 
 #include <cstdlib>
 #include <random>
@@ -27,6 +28,51 @@ typedef Data64 TestDataType; // Use for 64-bit Test
 // Number of RNS moduli to test with
 constexpr int MOD_COUNT = 3;
 
+// NTT-friendly primes of form k * 2^32 + 1 (~61 bits)
+// These are DISTINCT primes for true RNS testing
+// Each has a primitive generator g and supports NTT up to 2^32 points
+struct PrimeInfo
+{
+    TestDataType prime;
+    TestDataType generator;  // Primitive generator g
+    int max_logn;            // Maximum LOGN supported (32 for these primes)
+};
+
+// Primitive generators for each prime
+// g^((p-1)/2) = -1 mod p (quadratic non-residue)
+// NOTE: Library Barrett reduction requires modulus <= 61 bits for Data64
+//       (62-bit primes cause overflow in GPU Barrett reduction)
+static PrimeInfo rns_primes[MOD_COUNT] = {
+    // Prime 0: 2305842949084151809 = 536870898 * 2^32 + 1 (61 bits, g=7)
+    {2305842949084151809ULL, 7, 32},
+    // Prime 1: 2305842811645198337 = 536870866 * 2^32 + 1 (61 bits, g=3)
+    {2305842811645198337ULL, 3, 32},
+    // Prime 2: 2305842785875394561 = 536870860 * 2^32 + 1 (61 bits, g=3)
+    {2305842785875394561ULL, 3, 32}
+};
+
+// Compute omega for X^N - 1 polynomial at given LOGN
+// omega is a primitive N-th root of unity: omega^N = 1
+// omega = g^((p-1)/N) = g^((p-1)/2^logn)
+TestDataType compute_omega(const PrimeInfo& info, int logn)
+{
+    Modulus<TestDataType> mod(info.prime);
+    TestDataType pm1 = info.prime - 1;
+    TestDataType exp_val = pm1 >> logn;  // (p-1) / 2^logn
+    return OPERATOR<TestDataType>::exp(info.generator, exp_val, mod);
+}
+
+// Compute psi for X^N + 1 polynomial at given LOGN
+// psi is a primitive 2N-th root of unity: psi^N = -1
+// psi = g^((p-1)/(2N)) = g^((p-1)/2^(logn+1))
+TestDataType compute_psi(const PrimeInfo& info, int logn)
+{
+    Modulus<TestDataType> mod(info.prime);
+    TestDataType pm1 = info.prime - 1;
+    TestDataType exp_val = pm1 >> (logn + 1);  // (p-1) / 2^(logn+1)
+    return OPERATOR<TestDataType>::exp(info.generator, exp_val, mod);
+}
+
 int main(int argc, char* argv[])
 {
     CudaDevice();
@@ -41,7 +87,7 @@ int main(int argc, char* argv[])
               << prop.maxGridSize[1] << " x " << prop.maxGridSize[2]
               << std::endl;
 
-    // Test 1: Forward NTT with RNS (multiple moduli)
+    // Test 1: Forward NTT with RNS (multiple DISTINCT moduli)
     {
         if (argc < 3)
         {
@@ -54,7 +100,19 @@ int main(int argc, char* argv[])
             BATCH = atoi(argv[2]);
         }
 
-        cout << "\n=== Testing GPU RNS Forward NTT ===" << endl;
+        // Verify LOGN is supported
+        for (int m = 0; m < MOD_COUNT; m++)
+        {
+            if (LOGN > rns_primes[m].max_logn)
+            {
+                cout << "LOGN=" << LOGN << " exceeds max supported ("
+                     << rns_primes[m].max_logn << "). Using LOGN=12." << endl;
+                LOGN = 12;
+                break;
+            }
+        }
+
+        cout << "\n=== Testing GPU RNS Forward NTT with DISTINCT 61-bit primes ===" << endl;
         cout << "MOD_COUNT=" << MOD_COUNT << ", LOGN=" << LOGN
              << ", BATCH=" << BATCH << endl;
 
@@ -62,12 +120,20 @@ int main(int argc, char* argv[])
         // poly[i] uses modulus[i % MOD_COUNT]
         int total_batch = BATCH * MOD_COUNT;
 
-        // Create NTTParameters for each modulus (using default modulus for all)
+        // Create NTTParameters for each modulus with distinct primes
         vector<NTTParameters<TestDataType>> parameters_list;
         parameters_list.reserve(MOD_COUNT);
         for (int m = 0; m < MOD_COUNT; m++)
         {
-            parameters_list.emplace_back(LOGN, ReductionPolynomial::X_N_minus);
+            TestDataType omega = compute_omega(rns_primes[m], LOGN);
+            TestDataType psi = compute_psi(rns_primes[m], LOGN);
+
+            NTTFactors<TestDataType> factor(
+                Modulus<TestDataType>(rns_primes[m].prime), omega, psi);
+            parameters_list.emplace_back(LOGN, factor, ReductionPolynomial::X_N_minus);
+
+            cout << "Modulus " << m << ": " << rns_primes[m].prime
+                 << " (" << rns_primes[m].prime / (1ULL << 32) << " * 2^32 + 1)" << endl;
         }
 
         int N = parameters_list[0].n;
@@ -83,15 +149,18 @@ int main(int argc, char* argv[])
         for (int m = 0; m < MOD_COUNT; m++)
         {
             generators.emplace_back(parameters_list[m]);
-            cout << "Modulus " << m << ": " << parameters_list[m].modulus.value
-                 << endl;
         }
 
         std::random_device rd;
         std::mt19937 gen(0);
-        std::uint64_t minNumber = 0;
-        std::uint64_t maxNumber = parameters_list[0].modulus.value - 1;
-        std::uniform_int_distribution<std::uint64_t> dis(minNumber, maxNumber);
+
+        // Use smallest modulus for random range
+        TestDataType min_mod = rns_primes[0].prime;
+        for (int m = 1; m < MOD_COUNT; m++)
+        {
+            min_mod = std::min(min_mod, rns_primes[m].prime);
+        }
+        std::uniform_int_distribution<TestDataType> dis(0, min_mod - 1);
 
         // Random data generation for polynomials
         vector<vector<TestDataType>> input1(total_batch);
@@ -206,7 +275,7 @@ int main(int argc, char* argv[])
             if ((i == (total_batch - 1)) && check)
             {
                 cout << "All Correct - GPU RNS Forward NTT with " << MOD_COUNT
-                     << " moduli." << endl;
+                     << " DISTINCT moduli." << endl;
             }
         }
 
@@ -219,7 +288,7 @@ int main(int argc, char* argv[])
         free(Output_Host);
     }
 
-    // Test 2: Inverse NTT with RNS (multiple moduli)
+    // Test 2: Inverse NTT with RNS (multiple DISTINCT moduli)
     {
         if (argc < 3)
         {
@@ -232,18 +301,23 @@ int main(int argc, char* argv[])
             BATCH = atoi(argv[2]);
         }
 
-        cout << "\n=== Testing GPU RNS Inverse NTT ===" << endl;
+        cout << "\n=== Testing GPU RNS Inverse NTT with DISTINCT 61-bit primes ===" << endl;
         cout << "MOD_COUNT=" << MOD_COUNT << ", LOGN=" << LOGN
              << ", BATCH=" << BATCH << endl;
 
         int total_batch = BATCH * MOD_COUNT;
 
-        // Create NTTParameters for each modulus
+        // Create NTTParameters for each modulus with distinct primes
         vector<NTTParameters<TestDataType>> parameters_list;
         parameters_list.reserve(MOD_COUNT);
         for (int m = 0; m < MOD_COUNT; m++)
         {
-            parameters_list.emplace_back(LOGN, ReductionPolynomial::X_N_minus);
+            TestDataType omega = compute_omega(rns_primes[m], LOGN);
+            TestDataType psi = compute_psi(rns_primes[m], LOGN);
+
+            NTTFactors<TestDataType> factor(
+                Modulus<TestDataType>(rns_primes[m].prime), omega, psi);
+            parameters_list.emplace_back(LOGN, factor, ReductionPolynomial::X_N_minus);
         }
 
         int N = parameters_list[0].n;
@@ -260,9 +334,13 @@ int main(int argc, char* argv[])
 
         std::random_device rd;
         std::mt19937 gen(0);
-        std::uint64_t minNumber = 0;
-        std::uint64_t maxNumber = parameters_list[0].modulus.value - 1;
-        std::uniform_int_distribution<std::uint64_t> dis(minNumber, maxNumber);
+
+        TestDataType min_mod = rns_primes[0].prime;
+        for (int m = 1; m < MOD_COUNT; m++)
+        {
+            min_mod = std::min(min_mod, rns_primes[m].prime);
+        }
+        std::uniform_int_distribution<TestDataType> dis(0, min_mod - 1);
 
         // Random data generation for polynomials
         vector<vector<TestDataType>> input1(total_batch);
@@ -393,7 +471,7 @@ int main(int argc, char* argv[])
             if ((i == (total_batch - 1)) && check)
             {
                 cout << "All Correct - GPU RNS Inverse NTT with " << MOD_COUNT
-                     << " moduli." << endl;
+                     << " DISTINCT moduli." << endl;
             }
         }
 
@@ -420,18 +498,23 @@ int main(int argc, char* argv[])
             BATCH = atoi(argv[2]);
         }
 
-        cout << "\n=== Testing GPU RNS NTT Multiplication Roundtrip ===" << endl;
+        cout << "\n=== Testing GPU RNS NTT Multiplication with DISTINCT 61-bit primes ===" << endl;
         cout << "MOD_COUNT=" << MOD_COUNT << ", LOGN=" << LOGN
              << ", BATCH=" << BATCH << endl;
 
         int total_batch = BATCH * MOD_COUNT;
 
-        // Create NTTParameters for each modulus
+        // Create NTTParameters for each modulus with distinct primes
         vector<NTTParameters<TestDataType>> parameters_list;
         parameters_list.reserve(MOD_COUNT);
         for (int m = 0; m < MOD_COUNT; m++)
         {
-            parameters_list.emplace_back(LOGN, ReductionPolynomial::X_N_minus);
+            TestDataType omega = compute_omega(rns_primes[m], LOGN);
+            TestDataType psi = compute_psi(rns_primes[m], LOGN);
+
+            NTTFactors<TestDataType> factor(
+                Modulus<TestDataType>(rns_primes[m].prime), omega, psi);
+            parameters_list.emplace_back(LOGN, factor, ReductionPolynomial::X_N_minus);
         }
 
         int N = parameters_list[0].n;
@@ -448,9 +531,13 @@ int main(int argc, char* argv[])
 
         std::random_device rd;
         std::mt19937 gen(0);
-        std::uint64_t minNumber = 0;
-        std::uint64_t maxNumber = parameters_list[0].modulus.value - 1;
-        std::uniform_int_distribution<std::uint64_t> dis(minNumber, maxNumber);
+
+        TestDataType min_mod = rns_primes[0].prime;
+        for (int m = 1; m < MOD_COUNT; m++)
+        {
+            min_mod = std::min(min_mod, rns_primes[m].prime);
+        }
+        std::uniform_int_distribution<TestDataType> dis(0, min_mod - 1);
 
         // Random data generation for two sets of polynomials
         vector<vector<TestDataType>> input1(total_batch);
@@ -664,7 +751,7 @@ int main(int argc, char* argv[])
             if ((i == (total_batch - 1)) && check)
             {
                 cout << "All Correct - GPU RNS NTT Multiplication with "
-                     << MOD_COUNT << " moduli." << endl;
+                     << MOD_COUNT << " DISTINCT moduli." << endl;
             }
         }
 
